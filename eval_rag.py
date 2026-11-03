@@ -59,14 +59,18 @@ def load_items(path: str = SORU_YOLU) -> list[dict]:
         return json.load(f)["sorular"]
 
 
-def build_rankings(items: list[dict], index: dict) -> list[dict]:
+def make_cached_embed(embed_fn=rag.embed):
     onbellek = {}
 
     def cached_embed(texts):
         if texts[0] not in onbellek:
-            onbellek[texts[0]] = rag.embed(texts)
+            onbellek[texts[0]] = embed_fn(texts)
         return onbellek[texts[0]]
 
+    return cached_embed
+
+
+def build_rankings(items: list[dict], index: dict, cached_embed) -> list[dict]:
     for it in items:
         it["mevcut"] = rag.rank(it["soru"], index, cached_embed)
         it["birlesik"] = (
@@ -80,12 +84,12 @@ def build_rankings(items: list[dict], index: dict) -> list[dict]:
 # STEP 2: ESIK BAZLI METRIKLER
 ###############################################################
 
-def hits_at(item: dict, t: float) -> list[dict]:
-    # rag.retrieve ile ayni sira: mevcut, yetmezse birlesik, yoksa bos.
-    for siralama in (item["mevcut"], item["birlesik"]):
-        if siralama and siralama[0]["score"] >= t:
-            return [h for h in siralama if h["score"] >= t][:ayarlar.TOP_K]
-    return []
+def hits_at(item: dict, t: float, index: dict, cached_embed) -> list[dict]:
+    # Mantik kopyalanmaz: uretimdeki rag.retrieve dogrudan cagrilir; boylece
+    # olculen esik, bot'un gercek davranisindan sapamaz. Embed onbellekten gelir.
+    hits, _mode = rag.retrieve(item["soru"], item["onceki"], index,
+                               embed_fn=cached_embed, threshold=t)
+    return hits
 
 
 def raw_ranking(item: dict) -> list[dict]:
@@ -103,13 +107,13 @@ def recall_counts(items: list[dict]) -> tuple[int, int, int]:
     return r1, r3, len(cevap)
 
 
-def sweep(items: list[dict]) -> list[dict]:
+def sweep(items: list[dict], index: dict, cached_embed) -> list[dict]:
     cevap = [it for it in items if it["beklenen"]]
     yok = [it for it in items if not it["beklenen"]]
     satirlar = []
     for t in ESIKLER:
-        tutuldu = sum(found(it, hits_at(it, t)) for it in cevap)
-        ret = sum(not hits_at(it, t) for it in yok)
+        tutuldu = sum(found(it, hits_at(it, t, index, cached_embed)) for it in cevap)
+        ret = sum(not hits_at(it, t, index, cached_embed) for it in yok)
         denge = (tutuldu / len(cevap) + ret / len(yok)) / 2
         satirlar.append({"t": t, "tutuldu": tutuldu, "n_cevap": len(cevap),
                          "ret": ret, "n_yok": len(yok), "denge": denge})
@@ -133,7 +137,8 @@ def fmt_hits(siralama: list[dict], n: int = 3) -> str:
     return ", ".join("{}@{:.3f}".format(h["line"], h["score"]) for h in siralama[:n])
 
 
-def print_report(items: list[dict], satirlar: list[dict], secilen: dict) -> None:
+def print_report(items: list[dict], satirlar: list[dict], secilen: dict,
+                 index: dict, cached_embed) -> None:
     r1, r3, n = recall_counts(items)
     print(f"recall@1 {pct(r1, n)} | recall@3 {pct(r3, n)}\n")
     print(f"{'t':>5} | {'tutuldu':>16} | {'ret':>16} | denge")
@@ -147,13 +152,15 @@ def print_report(items: list[dict], satirlar: list[dict], secilen: dict) -> None
     for it in items:
         if it["beklenen"]:
             r3_ok = found(it, raw_ranking(it)[:3])
-            if not (r3_ok and found(it, hits_at(it, t))):
+            if not (r3_ok and found(it, hits_at(it, t, index, cached_embed))):
                 etiket = "recall@3" if not r3_ok else f"esik@{t:.2f}"
                 print(f"{it['id']} [{etiket}] {it['soru']!r} beklenen={it['beklenen']} "
                       f"ilk3: {fmt_hits(raw_ranking(it))}")
-        elif hits_at(it, t):
-            print(f"{it['id']} [ret degil@{t:.2f}] {it['soru']!r} getirilen: "
-                  f"{fmt_hits(hits_at(it, t))}")
+        else:
+            h = hits_at(it, t, index, cached_embed)
+            if h:
+                print(f"{it['id']} [ret degil@{t:.2f}] {it['soru']!r} getirilen: "
+                      f"{fmt_hits(h)}")
 
 
 def embed_digest() -> str:
@@ -184,10 +191,11 @@ def append_csv(satirlar: list[dict], secilen: dict, digest: str) -> None:
 
 def main() -> None:
     index = rag.load_index()
-    items = build_rankings(load_items(), index)
-    satirlar = sweep(items)
+    cached_embed = make_cached_embed()
+    items = build_rankings(load_items(), index, cached_embed)
+    satirlar = sweep(items, index, cached_embed)
     secilen = pick_threshold(satirlar)
-    print_report(items, satirlar, secilen)
+    print_report(items, satirlar, secilen, index, cached_embed)
     append_csv(satirlar, secilen, embed_digest())
     print(f"\nCSV: {CSV_YOLU}")
 

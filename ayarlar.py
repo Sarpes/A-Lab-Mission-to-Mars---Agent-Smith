@@ -6,8 +6,8 @@
 # icinde sayi veya yol tanimlamaz.
 #
 # NEDEN AYRI BIR DOSYA
-#   Esik ve model adi gibi degerler olcumle degisir (RAG_ESIK Gorev 4'te
-#   yeniden belirlenecek). Degerler tek yerde durursa, bir degisiklik
+#   Esik ve model adi gibi degerler olcumle degisir (RAG_ESIK eval_rag.py ile
+#   olculdu, bkz. docs/OLCUMLER.md). Degerler tek yerde durursa, bir degisiklik
 #   her modulde ayni anda gecerli olur ve iki yerde farkli sayi kalmaz.
 #
 # NASIL DEGISTIRILIR
