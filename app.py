@@ -50,6 +50,8 @@ OTURUM_KILIDI = ("Sekiz deneme, Mr. Anderson. Tahmin etmek bir strateji değil, 
                  "Bu oturum kapandı.")
 GENEL_YAVAS = ("Çok fazla insan aynı kilidi zorluyor, Mr. Anderson. Kapı artık yavaş açılıyor. "
                "Bekle; sabır, türünüzün nadir erdemlerinden biri.")
+SIRA_DOLU = ("Sıra dolu, Mr. Anderson. Kapının önü zaten kalabalık. "
+             "Biraz sonra tekrar dene.")
 
 
 ###############################################################
@@ -405,9 +407,11 @@ st.html(BASLIK)
 # text_input'ta deger kalir ve her yeniden calismada tekrar sayilirdi).
 # Kaba kuvvet korumasi (kilit.py): yanlis denemeden sonra 1, 2, 4, 8 sn
 # bekleme; oturumda 8 yanlis -> oturum kapanir; tum oturumlarda 10 dakikada
-# 30'dan fazla yanlis -> her deneme once GENEL_YAVASLATMA_SN bekler, sonra
-# normal degerlendirilir; dogru sifre her zaman girer (R14). Deneme gecici
-# basarisizlik olarak kaydedilir, dogruysa cancel_attempt ile geri alinir.
+# 30'dan fazla yanlis -> denemeler TUM oturumlar icin siraya girer,
+# GENEL_YAVASLATMA_SN'de tek deneme degerlendirilir; dogru sifre sirasi
+# gelince girer (R14, R15). Sirada GENEL_BEKLEYEN_MAX kisi varsa yeni deneme
+# "sira dolu" ile hemen reddedilir. Deneme gecici basarisizlik olarak
+# kaydedilir, dogruysa cancel_attempt ile geri alinir. Ayrintilar: kilit.py.
 
 def kapi() -> None:
     st.html('<div class="kapi"><div class="etiket">ERİŞİM DENETİMİ // SEVİYE 7</div>'
@@ -424,12 +428,13 @@ def kapi() -> None:
         gonderildi = st.form_submit_button("GİRİŞ")
     if gonderildi and kod:
         genel = kilit_al()
-        jeton, yavas = kilit.begin_attempt(genel, time.monotonic())
-        if yavas:
-            st.warning(GENEL_YAVAS)
-            time.sleep(ayarlar.GENEL_YAVASLATMA_SN)
+        deneme = kilit.begin_attempt(genel)
+        if deneme["rejected"]:
+            st.warning(SIRA_DOLU)
+            st.stop()
+        kilit.wait_turn(genel, deneme, on_wait=lambda: st.warning(GENEL_YAVAS))
         if hmac.compare_digest(kod.encode("utf-8"), ayarlar.ERISIM_SIFRESI.encode("utf-8")):
-            kilit.cancel_attempt(genel, jeton)
+            kilit.cancel_attempt(genel, deneme["token"])
             st.session_state["girdi"] = True
             st.session_state.pop("erisim_kodu", None)
             st.session_state.pop("yanlis", None)
