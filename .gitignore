@@ -15,3 +15,6 @@ eval_bot.py
 tests/test_eval_bot.py
 docs/
 Örnek Dosyalar ve Yönergeler/
+
+# Playwright tarayici test gunlukleri
+.playwright-mcp/
