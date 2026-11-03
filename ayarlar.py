@@ -82,3 +82,9 @@ GECMIS_TUR = _tamsayi("GECMIS_TUR", 10)
 PARALEL_YUVA = _tamsayi("PARALEL_YUVA", 2)
 SORU_MAX = _tamsayi("SORU_MAX", 500)
 ERISIM_SIFRESI = _metin("ERISIM_SIFRESI", "")
+
+# --- Sifre kapisi korumasi (kaba kuvvete karsi, bkz. kilit.py) ----------------
+SIFRE_MIN = _tamsayi("SIFRE_MIN", 8)                # daha kisa sifreyle uygulama baslamaz
+SIFRE_DENEME_MAX = _tamsayi("SIFRE_DENEME_MAX", 8)  # oturum basina yanlis deneme
+GENEL_DENEME_MAX = _tamsayi("GENEL_DENEME_MAX", 30)  # tum oturumlarda, pencere icinde
+GENEL_PENCERE_SN = _tamsayi("GENEL_PENCERE_SN", 600)

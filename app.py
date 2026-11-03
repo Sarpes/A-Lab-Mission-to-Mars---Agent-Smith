@@ -41,10 +41,15 @@ import streamlit as st
 
 import ayarlar
 import bot
+import kilit
 import kuyruk
 import rag
 
 BEKLEME = "Önünde {n} insan var, Mr. Anderson. Beklemek senin türünün uzmanlık alanı."
+OTURUM_KILIDI = ("Sekiz deneme, Mr. Anderson. Tahmin etmek bir strateji değil, bir semptom. "
+                 "Bu oturum kapandı.")
+GENEL_KILIT = ("Kapı şu an herkese kapalı, Mr. Anderson. Çok fazla insan aynı kilidi zorladı. "
+               "Birkaç dakika sonra tekrar dene; sabır, türünüzün nadir erdemlerinden biri.")
 
 
 ###############################################################
@@ -56,11 +61,16 @@ st.set_page_config(page_title="Mars Turizm", page_icon="🔴", layout="centered"
 
 
 ###############################################################
-# STEP 2: SIFRE TANIMLI MI (K-18)
+# STEP 2: SIFRE TANIMLI VE YETERINCE UZUN MU (K-18)
 ###############################################################
+# Kisa sifre, deneme sinirina ragmen tahmin edilebilir; uygulama acilmaz.
 
 if not ayarlar.ERISIM_SIFRESI:
     st.error("ERISIM_SIFRESI tanımlı değil. Uygulama bilerek başlatılmıyor (KARARLAR K-18).")
+    st.stop()
+if len(ayarlar.ERISIM_SIFRESI) < ayarlar.SIFRE_MIN:
+    st.error(f"ERISIM_SIFRESI en az {ayarlar.SIFRE_MIN} karakter olmalı. "
+             "Uygulama bilerek başlatılmıyor (KARARLAR K-18).")
     st.stop()
 
 
@@ -99,6 +109,11 @@ def motor_baslat(_persona: dict) -> dict:
     print(f"[mars] indeks+preload {t1 - t0:.2f} s, warmup {t2 - t1:.2f} s",
           file=sys.stderr, flush=True)
     return index
+
+
+@st.cache_resource(show_spinner=False)
+def kilit_al() -> dict:
+    return kilit.new_guard()
 
 
 @st.cache_resource(show_spinner=False)
@@ -335,6 +350,13 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 [data-testid="stAlert"] p { color: var(--pas-acik) !important; }
 [data-testid="stSidebar"] { background: #030303 !important; border-right: 1px solid rgba(193, 68, 14, 0.6); }
+[data-testid="stFormSubmitButton"] button {
+  border-radius: 0 !important; border: 1px solid var(--pas) !important;
+  background: transparent !important; color: var(--pas) !important;
+  font-family: var(--mono) !important; letter-spacing: 0.25em;
+}
+[data-testid="InputInstructions"] { display: none !important; }
+[data-testid="stFormSubmitButton"] button:hover { background: rgba(193, 68, 14, 0.15) !important; }
 [data-testid="stSidebar"] button {
   border-radius: 0 !important; border: 1px solid var(--pas) !important;
   background: transparent !important; color: var(--pas) !important;
@@ -377,19 +399,44 @@ st.html(BASLIK)
 # STEP 6: SIFRE KAPISI
 ###############################################################
 # hmac.compare_digest: karsilastirma suresi eslesen karakter sayisini sizdirmaz.
-# Oturum basina bir kez; basaridan sonra kutu bir daha cizilmez.
+# Oturum basina bir kez; basaridan sonra kutu bir daha cizilmez ve yazilan
+# kod st.session_state'ten silinir (bellekte duz metin sifre kalmaz).
+# Form + clear_on_submit: her gonderim tam bir kez degerlendirilir (duz
+# text_input'ta deger kalir ve her yeniden calismada tekrar sayilirdi).
+# Kaba kuvvet korumasi (kilit.py): yanlis denemeden sonra 1, 2, 4, 8 sn
+# bekleme; oturumda 8 yanlis -> oturum kapanir; tum oturumlarda 10 dakikada
+# 30'dan fazla yanlis -> pencere gecene kadar hicbir deneme kabul edilmez.
 
 def kapi() -> None:
     st.html('<div class="kapi"><div class="etiket">ERİŞİM DENETİMİ // SEVİYE 7</div>'
             '<div class="soz">Erişim kodu, Mr. Anderson. Herkes Matrix\'e giremez.'
             '<span class="imlec"></span></div></div>')
-    kod = st.text_input("Erişim kodu", type="password", key="erisim_kodu",
-                        label_visibility="collapsed", placeholder="erişim kodu ▸ Enter")
-    if kod:
+    yanlis = st.session_state.get("yanlis", 0)
+    if kilit.session_locked(yanlis):
+        st.error(OTURUM_KILIDI)
+        st.stop()
+
+    with st.form("kapi_formu", clear_on_submit=True, border=False):
+        kod = st.text_input("Erişim kodu", type="password", key="erisim_kodu",
+                            label_visibility="collapsed", placeholder="erişim kodu ▸ Enter")
+        gonderildi = st.form_submit_button("GİRİŞ")
+    if gonderildi and kod:
+        genel = kilit_al()
+        if kilit.is_locked(genel, time.monotonic()):
+            st.error(GENEL_KILIT)
+            st.stop()
         if hmac.compare_digest(kod.encode("utf-8"), ayarlar.ERISIM_SIFRESI.encode("utf-8")):
             st.session_state["girdi"] = True
+            st.session_state.pop("erisim_kodu", None)
+            st.session_state.pop("yanlis", None)
             st.rerun()
-        st.error("Yanlış kod. Tahmin edilebilir bir tür.")
+        yanlis += 1
+        st.session_state["yanlis"] = yanlis
+        kilit.record_failure(genel, time.monotonic())
+        print(f"[mars] yanlis erisim kodu (oturumda {yanlis})", file=sys.stderr, flush=True)
+        time.sleep(kilit.backoff(yanlis))
+        st.error(OTURUM_KILIDI if kilit.session_locked(yanlis)
+                 else "Yanlış kod. Tahmin edilebilir bir tür.")
     st.stop()
 
 
