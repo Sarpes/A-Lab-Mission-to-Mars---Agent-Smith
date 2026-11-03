@@ -27,7 +27,8 @@
 # GIRDI    persona.txt, ayarlar, rag.retrieve / rag.embed, Ollama
 # CIKTI    load_persona, tr_lower, is_pet_topic, validate_question,
 #          pick_motifs, is_repeat, new_session, prepare_turn, build_messages,
-#          stream_answer, supports_thinking, preload, record_turn,
+#          system_message, stream_answer, supports_thinking, preload,
+#          warmup, record_turn,
 #          friendly_error
 ###############################################################
 
@@ -217,9 +218,7 @@ def prepare_turn(session: dict, question: str, index: dict, persona: dict,
 # ikinci savunma hattidir (docs/OLCUMLER.md: "CEO kim?" gibi YOK sorulari
 # 0.55 esiginin hemen altinda; birlesik aramada onceki sorunun satiri gelir).
 
-def build_messages(persona: dict, history: list[dict], question: str,
-                   hits: list[dict], motifs: tuple[str, str], pet: bool,
-                   repeat: bool) -> list[dict]:
+def system_message(persona: dict) -> dict:
     ornekler = "\n".join(f"- {e}" for e in persona["examples"])
     sistem = "\n\n".join([
         persona["system"],
@@ -228,7 +227,12 @@ def build_messages(persona: dict, history: list[dict], question: str,
         "geçerlidir; fikir ve genel bilgi sorularında kullanılmaz (yapı örneği, "
         f"kelimesi kelimesine kopyalama):\n{ornekler}",
     ])
+    return {"role": "system", "content": sistem}
 
+
+def build_messages(persona: dict, history: list[dict], question: str,
+                   hits: list[dict], motifs: tuple[str, str], pet: bool,
+                   repeat: bool) -> list[dict]:
     motif, ipucu = motifs
     tur = [
         f"- Matrix motifi: {motif}. Küçümseme cümlende buna bir gönderme yap.",
@@ -255,7 +259,7 @@ def build_messages(persona: dict, history: list[dict], question: str,
         "Tahmin etme, hesaplama, uydurma.)"
     )
 
-    return ([{"role": "system", "content": sistem}]
+    return ([system_message(persona)]
             + list(history[-2 * ayarlar.GECMIS_TUR:])
             + [{"role": "user", "content": kullanici}])
 
@@ -299,6 +303,23 @@ def stream_answer(messages: list[dict], model: str = ayarlar.LLM_MODEL,
 def preload(model: str = ayarlar.LLM_MODEL, client=None) -> None:
     client = client or _client()
     client.generate(model=model, prompt="", keep_alive=ayarlar.KEEP_ALIVE)
+
+
+# Isinma (R12): preload modeli bellege alir ama sistem mesajinin on islemesi
+# (prefill) ilk gercek soruda odenirdi (olculen ilk token: 6.70 s). Ayni
+# sistem mesajiyla tek tokenlik bir cagri Ollama'nin onek onbellegini
+# (prompt cache) doldurur; ilk gercek soru yalnizca kendi kismini isler.
+def warmup(persona: dict, model: str = ayarlar.LLM_MODEL, client=None) -> None:
+    client = client or _client()
+    kwargs = {
+        "model": model,
+        "messages": [system_message(persona), {"role": "user", "content": "Merhaba."}],
+        "options": {"num_predict": 1, "num_ctx": ayarlar.NUM_CTX},
+        "keep_alive": ayarlar.KEEP_ALIVE,
+    }
+    if supports_thinking(model, client):
+        kwargs["think"] = ayarlar.THINK
+    client.chat(**kwargs)
 
 
 ###############################################################

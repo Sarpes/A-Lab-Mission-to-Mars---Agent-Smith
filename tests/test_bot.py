@@ -246,6 +246,30 @@ def test_preload_calls_generate():
                                        "keep_alive": ayarlar.KEEP_ALIVE}
 
 
+class SahteSohbetIstemci(SahteIstemci):
+    def chat(self, **kwargs):
+        self.chat_kwargs = kwargs
+        return SimpleNamespace(message=SimpleNamespace(content="."))
+
+
+def test_warmup_prefills_real_system_message(persona):
+    sistem = bot.build_messages(persona, [], "x", [], ("m", "i"), False, False)[0]
+
+    dusunen = SahteSohbetIstemci(["completion", "thinking"])
+    bot.warmup(persona, model="sahte-isinma-dusunen", client=dusunen)
+    k = dusunen.chat_kwargs
+    assert k["messages"][0] == sistem
+    assert len(k["messages"]) == 2 and k["messages"][1]["role"] == "user"
+    assert k["options"] == {"num_predict": 1, "num_ctx": ayarlar.NUM_CTX}
+    assert k["keep_alive"] == ayarlar.KEEP_ALIVE
+    assert k.get("stream", False) is False
+    assert k["think"] is False
+
+    duz = SahteSohbetIstemci(["completion"])
+    bot.warmup(persona, model="sahte-isinma-duz", client=duz)
+    assert "think" not in duz.chat_kwargs
+
+
 # --- dostca hata mesajlari --------------------------------------------------
 
 def test_friendly_error_for_connection_refused():
