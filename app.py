@@ -61,6 +61,12 @@ SIRA_DOLU = ("Sıra dolu, Mr. Anderson. Kapının önü zaten kalabalık. "
 
 st.set_page_config(page_title="Mars Turizm", page_icon="🔴", layout="centered")
 
+# Matrix kod yagmuru: arka planda soluk akar, fareye tepki verir (arayuz/yagmur.html).
+# Acilis yuklemesinden ONCE gonderilir ki "Matrix'e baglaniliyor" ekraninda da aksin.
+# JavaScript yalnizca bu projenin kendi dosyasindan gelir; kullanici girdisi icermez.
+with open(f"{ayarlar.KOK}/arayuz/yagmur.html", encoding="utf-8") as _f:
+    st.html(_f.read(), unsafe_allow_javascript=True)
+
 
 ###############################################################
 # STEP 2: SIFRE TANIMLI VE YETERINCE UZUN MU (K-18)
@@ -152,17 +158,11 @@ CSS = """
   --mono: ui-monospace, "Cascadia Mono", "Consolas", "SFMono-Regular", "Menlo", "Courier New", monospace;
 }
 
-/* --- zemin: tarama cizgileri ve Mars ufku isigi --- */
+/* --- zemin: tarama cizgileri. Siyah zemin ve Mars ufku isigi body'de,
+   .stApp saydam: arkadaki Matrix yagmuru gorunur (arayuz/yagmur.html). --- */
 html, body, .stApp, [data-testid="stAppViewContainer"] {
-  background: var(--zemin) !important;
   font-family: var(--mono) !important;
   overflow-x: hidden;
-}
-.stApp {
-  background:
-    radial-gradient(120% 60% at 50% -10%, rgba(193, 68, 14, 0.22), transparent 60%),
-    radial-gradient(80% 50% at 50% 110%, rgba(0, 255, 65, 0.06), transparent 70%),
-    #000 !important;
 }
 .stApp::after {
   content: "";
@@ -253,7 +253,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
   border-left: 2px solid var(--yesil-soluk);
-  background: linear-gradient(90deg, rgba(0, 255, 65, 0.06), transparent 70%) !important;
+  background: linear-gradient(90deg, rgba(0, 255, 65, 0.06), transparent 70%), rgba(0, 0, 0, 0.62) !important;
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"],
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"] p {
@@ -262,7 +262,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
   border-left: 3px solid var(--pas);
-  background: linear-gradient(90deg, rgba(193, 68, 14, 0.14), transparent 75%) !important;
+  background: linear-gradient(90deg, rgba(193, 68, 14, 0.14), transparent 75%), rgba(0, 0, 0, 0.62) !important;
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"],
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] p {
@@ -295,7 +295,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 [data-testid="stExpander"] details {
   border: 1px dashed rgba(193, 68, 14, 0.7) !important;
   border-radius: 0 !important;
-  background: rgba(193, 68, 14, 0.05);
+  background: linear-gradient(rgba(193, 68, 14, 0.05), rgba(193, 68, 14, 0.05)), rgba(0, 0, 0, 0.62);
 }
 [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p,
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"] [data-testid="stExpander"] summary p {
@@ -328,7 +328,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 
 /* --- girdiler, uyarilar, kenar cubugu --- */
-[data-testid="stBottom"], [data-testid="stBottom"] > div { background: #000 !important; }
+[data-testid="stBottom"], [data-testid="stBottom"] > div { background: rgba(0, 0, 0, 0.82) !important; }
 [data-testid="stChatInput"] {
   border: 1px solid var(--pas) !important;
   border-radius: 0 !important;

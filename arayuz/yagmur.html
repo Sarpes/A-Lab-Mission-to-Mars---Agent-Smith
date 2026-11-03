@@ -1,0 +1,139 @@
+<!--
+  MATRIX KOD YAGMURU (arka plan)
+  app.py bunu sayfanin ilk ogesi olarak st.html(..., unsafe_allow_javascript=True)
+  ile ekler; boylece "Matrix'e baglaniliyor..." ekraninda da akar.
+
+  - Tuval (canvas) body'nin ILK cocugudur, sabit konumlu, z-index 0. .stApp
+    z-index 1 ve saydam: yazilar tuvalin USTUNDE kalir, yagmur arkada soluk akar.
+  - Iz efekti "destination-out" ile yapilir: tuval saydam kalir, alttaki Mars
+    ufku isigi (body arka plani) gorunur.
+  - Fare/parmak: imlece R pikselden yakin karakterler imlecten uzaga itilir ve
+    parlar. Tuval tiklamalari engellemez (pointer-events: none); konum window
+    uzerinden dinlenir.
+  - Streamlit her etkilesimde betigi yeniden calistirir; window.__matrixYagmur
+    bayragi ikinci bir tuval/dongu acilmasini onler.
+  - Sekme gizliyken durur; "hareketi azalt" ayarli cihazlarda hic baslamaz.
+-->
+<style>
+  html, body { background:
+      radial-gradient(120% 60% at 50% -10%, rgba(193, 68, 14, 0.22), transparent 60%),
+      radial-gradient(80% 50% at 50% 110%, rgba(0, 255, 65, 0.06), transparent 70%),
+      #000 !important; }
+  .stApp, [data-testid="stAppViewContainer"] { background: transparent !important; }
+  /* .stApp Streamlit'te zaten mutlak konumlu ve tam ekran: konumu DEGISTIRME
+     (relative yapinca yuksekligi 0'a duser ve icerik kirpilir). */
+  .stApp { z-index: 1; }
+  #matrix-yagmuru {
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    z-index: 0; pointer-events: none;
+  }
+  /* Yazi panellerinin arkasi koyulasir: yagmur orada daha da soluk gorunur. */
+  /* (sohbet satirlari ve belge kutusu icin app.py CSS'inde ayni koyu taban var) */
+  .kapi, .mars-ust { background-color: rgba(0, 0, 0, 0.62) !important; }
+</style>
+<script>
+(function () {
+  if (window.__matrixYagmur) return;
+  window.__matrixYagmur = true;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  var GLIFLER = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン0123456789MARS:.=*+-<>";
+  var BOYUT = 16;           // karakter boyu (px)
+  var KARE_MS = 55;         // ~18 kare/sn: hafif ve sakin
+  var R = 140;              // farenin etki yaricapi (px)
+  // Arka plan karakterlerinin opakligi (soluk). Fareye yakin olanlar 0.85'e kadar parlar.
+  var SOLUK = window.innerWidth <= 640 ? 0.13 : 0.18;
+  var ITME = 34;            // en yakindaki karakterin itilme mesafesi (px)
+
+  var tuval = document.createElement("canvas");
+  tuval.id = "matrix-yagmuru";
+  document.body.insertBefore(tuval, document.body.firstChild);
+  var c = tuval.getContext("2d");
+  var dpr = 1, gen = 0, yuk = 0, damlalar = [];
+  var fare = { x: -9999, y: -9999 };
+
+  function boyutla() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    gen = window.innerWidth; yuk = window.innerHeight;
+    tuval.width = gen * dpr; tuval.height = yuk * dpr;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.font = BOYUT + "px monospace";
+    var sutun = Math.ceil(gen / BOYUT);
+    var eski = damlalar;
+    damlalar = [];
+    for (var i = 0; i < sutun; i++) {
+      damlalar.push(eski[i] !== undefined ? eski[i]
+        : { y: Math.random() * yuk / BOYUT, hiz: 0.55 + Math.random() * 0.6 });  // ekran dolu baslar
+    }
+  }
+
+  function konum(e) { fare.x = e.clientX; fare.y = e.clientY; }
+  window.addEventListener("pointermove", konum, { passive: true });
+  window.addEventListener("pointerdown", konum, { passive: true });
+  document.addEventListener("pointerleave", function () { fare.x = fare.y = -9999; });
+  window.addEventListener("pointerup", function (e) {
+    if (e.pointerType !== "mouse") { fare.x = fare.y = -9999; }  // parmak kalkinca
+  }, { passive: true });
+  window.addEventListener("blur", function () { fare.x = fare.y = -9999; });
+  window.addEventListener("resize", boyutla);
+
+  function ciz() {
+    // Izleri sondur: saydam tuvalde eski karelerden alfa eksilt.
+    c.globalCompositeOperation = "destination-out";
+    c.fillStyle = "rgba(0, 0, 0, 0.09)";
+    c.fillRect(0, 0, gen, yuk);
+    c.globalCompositeOperation = "source-over";
+
+    for (var i = 0; i < damlalar.length; i++) {
+      var d = damlalar[i];
+      var x = i * BOYUT, y = d.y * BOYUT;
+      var dx = x - fare.x, dy = y - fare.y;
+      var uzak = Math.sqrt(dx * dx + dy * dy);
+      var glif = GLIFLER.charAt((Math.random() * GLIFLER.length) | 0);
+
+      if (uzak < R) {
+        // Fareye yakin: imlecten disari itilir, beyaza yakin parlar.
+        var guc = 1 - uzak / R;
+        var bol = uzak || 1;
+        x += (dx / bol) * ITME * guc;
+        y += (dy / bol) * ITME * guc;
+        c.fillStyle = "rgba(190, 255, 200, " + (SOLUK + (0.85 - SOLUK) * guc) + ")";
+        d.hiz = Math.min(d.hiz + 0.04 * guc, 1.6);
+      } else {
+        c.fillStyle = Math.random() < 0.04 ? "rgba(182, 255, 198, " + SOLUK + ")" : "rgba(0, 255, 65, " + SOLUK + ")";
+      }
+      c.fillText(glif, x, y);
+
+      // Fare halkasi: imlece yakin sutunlarda her karede birkac ek karakter,
+      // imlecten disari itilmis ve parlak. Hareket edince iz birakip soner.
+      if (Math.abs(i * BOYUT - fare.x) < R) {
+        for (var k = 0; k < 2; k++) {
+          var hx = i * BOYUT, hy = fare.y + (Math.random() * 2 - 1) * R;
+          var hdx = hx - fare.x, hdy = hy - fare.y;
+          var hu = Math.sqrt(hdx * hdx + hdy * hdy);
+          if (hu >= R || hu < 1) continue;
+          var hg = 1 - hu / R;
+          hx += (hdx / hu) * ITME * hg;
+          hy += (hdy / hu) * ITME * hg;
+          c.fillStyle = "rgba(190, 255, 200, " + (SOLUK + (0.8 - SOLUK) * hg) + ")";
+          c.fillText(GLIFLER.charAt((Math.random() * GLIFLER.length) | 0), hx, hy);
+        }
+      }
+
+      d.y += d.hiz;
+      if (y > yuk && Math.random() > 0.975) {
+        d.y = 0;
+        d.hiz = 0.55 + Math.random() * 0.6;
+      }
+    }
+  }
+
+  var son = 0;
+  function dongu(t) {
+    if (!document.hidden && t - son >= KARE_MS) { son = t; ciz(); }
+    window.requestAnimationFrame(dongu);
+  }
+  boyutla();
+  window.requestAnimationFrame(dongu);
+})();
+</script>
