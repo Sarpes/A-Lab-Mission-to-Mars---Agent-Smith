@@ -74,7 +74,7 @@ KEEP_ALIVE = _metin("KEEP_ALIVE", "30m")
 
 # --- Erisim (retrieval) ------------------------------------------------------
 TOP_K = _tamsayi("TOP_K", 3)
-RAG_ESIK = _ondalik("RAG_ESIK", 0.45)        # GECICI: Gorev 4'te olcumle degisecek
+RAG_ESIK = _ondalik("RAG_ESIK", 0.55)        # eval_rag.py taramasi, bkz. docs/OLCUMLER.md
 TEKRAR_ESIK = _ondalik("TEKRAR_ESIK", 0.92)  # GECICI
 
 # --- Sohbet limitleri --------------------------------------------------------

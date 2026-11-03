@@ -1,0 +1,301 @@
+{
+ "_durum": "taslak - kullanici incelemesi bekliyor",
+ "sorular": [
+  {
+   "id": "R01",
+   "soru": "Şirket ne zaman kuruldu?",
+   "onceki": null,
+   "beklenen": [
+    3
+   ]
+  },
+  {
+   "id": "R02",
+   "soru": "Mars Turizm kaç yılında kurulmuştur?",
+   "onceki": null,
+   "beklenen": [
+    3
+   ]
+  },
+  {
+   "id": "R03",
+   "soru": "Mars yolculuğu kaç gün sürüyor?",
+   "onceki": null,
+   "beklenen": [
+    4
+   ]
+  },
+  {
+   "id": "R04",
+   "soru": "Seyahatin süresi nedir?",
+   "onceki": null,
+   "beklenen": [
+    4
+   ]
+  },
+  {
+   "id": "R05",
+   "soru": "Ekonomi paket kaç lira?",
+   "onceki": null,
+   "beklenen": [
+    5
+   ]
+  },
+  {
+   "id": "R06",
+   "soru": "Bilet fiyatları nedir?",
+   "onceki": null,
+   "beklenen": [
+    5
+   ]
+  },
+  {
+   "id": "R07",
+   "soru": "VIP paketine neler dahil?",
+   "onceki": null,
+   "beklenen": [
+    6
+   ]
+  },
+  {
+   "id": "R08",
+   "soru": "VIP'e uzay yürüyüşü dahil mi?",
+   "onceki": null,
+   "beklenen": [
+    6
+   ]
+  },
+  {
+   "id": "R09",
+   "soru": "Her yolcuya kaç uzay kıyafeti veriliyor?",
+   "onceki": null,
+   "beklenen": [
+    7
+   ]
+  },
+  {
+   "id": "R10",
+   "soru": "Kıyafetimi kendim getirmem gerekir mi?",
+   "onceki": null,
+   "beklenen": [
+    7
+   ]
+  },
+  {
+   "id": "R11",
+   "soru": "Mars'ta wifi var mı?",
+   "onceki": null,
+   "beklenen": [
+    8
+   ]
+  },
+  {
+   "id": "R12",
+   "soru": "İnternete hangi saatlerde bağlanabilirim?",
+   "onceki": null,
+   "beklenen": [
+    8
+   ]
+  },
+  {
+   "id": "R13",
+   "soru": "Çayın fiyatı nedir?",
+   "onceki": null,
+   "beklenen": [
+    9
+   ]
+  },
+  {
+   "id": "R14",
+   "soru": "Kahve ücretli mi?",
+   "onceki": null,
+   "beklenen": [
+    9
+   ]
+  },
+  {
+   "id": "R15",
+   "soru": "Çocuğum yalnız gidebilir mi?",
+   "onceki": null,
+   "beklenen": [
+    10
+   ]
+  },
+  {
+   "id": "R16",
+   "soru": "17 yaşındayım, tek başıma seyahat edebilir miyim?",
+   "onceki": null,
+   "beklenen": [
+    10
+   ]
+  },
+  {
+   "id": "R17",
+   "soru": "Rezervasyonumu ne zamana kadar iptal edebilirim?",
+   "onceki": null,
+   "beklenen": [
+    11
+   ]
+  },
+  {
+   "id": "R18",
+   "soru": "İptal için son gün nedir?",
+   "onceki": null,
+   "beklenen": [
+    11
+   ]
+  },
+  {
+   "id": "R19",
+   "soru": "Köpeğimi yanımda götürebilir miyim?",
+   "onceki": null,
+   "beklenen": [
+    12
+   ]
+  },
+  {
+   "id": "R20",
+   "soru": "Evcil hayvanımla seyahat edebilir miyim?",
+   "onceki": null,
+   "beklenen": [
+    12
+   ]
+  },
+  {
+   "id": "R21",
+   "soru": "Şirketin sloganı nedir?",
+   "onceki": null,
+   "beklenen": [
+    13
+   ]
+  },
+  {
+   "id": "R22",
+   "soru": "Sloganınızı söyler misiniz?",
+   "onceki": null,
+   "beklenen": [
+    13
+   ]
+  },
+  {
+   "id": "R23",
+   "soru": "Peki içinde ne var?",
+   "onceki": "VIP paket ne kadar?",
+   "beklenen": [
+    6
+   ]
+  },
+  {
+   "id": "R24",
+   "soru": "Peki ya kahve?",
+   "onceki": "Çay ne kadar?",
+   "beklenen": [
+    9
+   ]
+  },
+  {
+   "id": "R25",
+   "soru": "Peki ya ekonomi?",
+   "onceki": "VIP paket ne kadar?",
+   "beklenen": [
+    5
+   ]
+  },
+  {
+   "id": "R26",
+   "soru": "Peki ya çocuklar?",
+   "onceki": "Evcil hayvan kabul ediliyor mu?",
+   "beklenen": [
+    10
+   ]
+  },
+  {
+   "id": "R27",
+   "soru": "Hangi saatlerde?",
+   "onceki": "Mars'ta internet var mı?",
+   "beklenen": [
+    8
+   ]
+  },
+  {
+   "id": "R28",
+   "soru": "Kaç tane?",
+   "onceki": "Uzay kıyafeti veriliyor mu?",
+   "beklenen": [
+    7
+   ]
+  },
+  {
+   "id": "R29",
+   "soru": "CEO kim?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R30",
+   "soru": "Kaç çalışanınız var?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R31",
+   "soru": "Dünya'da nereden kalkıyoruz?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R32",
+   "soru": "Dolarla ödeme yapabilir miyim?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R33",
+   "soru": "Seyahat sigortası var mı?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R34",
+   "soru": "Yemek menüsünde neler var?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R35",
+   "soru": "Bagaj limiti kaç kilo?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R36",
+   "soru": "Mars'ta kaç gece kalıyoruz?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R37",
+   "soru": "Mars'ta nereye ineceğiz?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R38",
+   "soru": "Telefon numaranız nedir?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R39",
+   "soru": "Öğrencilere indirim var mı?",
+   "onceki": null,
+   "beklenen": []
+  },
+  {
+   "id": "R40",
+   "soru": "Jüpiter turu var mı?",
+   "onceki": null,
+   "beklenen": []
+  }
+ ]
+}
