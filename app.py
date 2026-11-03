@@ -23,10 +23,9 @@
 #   ilk ziyaretci sistem mesaji on islemesini (prefill) beklemez.
 #
 # NEDEN AYRI BIR ARAYUZ LISTESI
-#   bot oturumunun gecmisi modele gidecek ham metindir. Ekranda ise her cevabin
-#   yaninda o turun belgeleri (hits) de durmali ki "Erisilen belgeler" bolumu
-#   her yeniden calismada tekrar cizilsin. Bu yuzden st.session_state["mesajlar"]
-#   yalnizca gosterim icindir: {"role", "content", "hits"}.
+#   bot oturumunun gecmisi modele gidecek metindir; ekranda ise hata mesajlari
+#   da gorunur ama modele gitmez. Bu yuzden st.session_state["mesajlar"]
+#   yalnizca gosterim icindir: {"role", "content"}.
 #
 # GIRDI    ayarlar (.env), persona.txt, data/mars_turizm.txt, Ollama
 # CIKTI    tarayicida sohbet ekrani; logs/sohbet.jsonl (bot.record_turn)
@@ -479,24 +478,12 @@ def md(metin: str) -> str:
     return metin.replace("$", "\\$")
 
 
-def belgeler(hits: list[dict]) -> None:
-    with st.expander("📂 Erişilen belgeler", expanded=False):
-        if not hits:
-            st.markdown("Eşiği geçen belge yok.")
-            return
-        satirlar = "".join(
-            f'<div class="belge"><span class="no">satır {h["line"]}</span> · '
-            f'<span class="skor">skor {float(h["score"]):.2f}</span> · '
-            f'{html.escape(h["text"])}</div>'
-            for h in hits)
-        st.html(satirlar)
-
+# "Erisilen belgeler" kutusu kullanici istegiyle kaldirildi (KARARLAR K-43);
+# her turun getirilen satirlari ve skorlari logs/sohbet.jsonl'da durur.
 
 for m in st.session_state["mesajlar"]:
     with st.chat_message(m["role"]):
         st.markdown(md(m["content"]))
-        if m["role"] == "assistant" and m.get("hits") is not None:
-            belgeler(m["hits"])
 
 
 ###############################################################
@@ -520,8 +507,8 @@ def akis(turn: dict, sayac: dict):
 
 def hata_goster(yer, soru: str, mesaj: str) -> None:
     yer.markdown(md(mesaj))
-    st.session_state["mesajlar"] += [{"role": "user", "content": soru, "hits": None},
-                                     {"role": "assistant", "content": mesaj, "hits": None}]
+    st.session_state["mesajlar"] += [{"role": "user", "content": soru},
+                                     {"role": "assistant", "content": mesaj}]
 
 
 soru = st.chat_input("", submit_mode="disable")
@@ -561,7 +548,6 @@ if soru:
                 ilk = sayac.get("ilk", float("nan"))
                 print(f"[mars] ilk token: akistan {ilk - t0:.2f} s, sorudan {ilk - t_soru:.2f} s; "
                       f"akis {sure:.2f} s", file=sys.stderr, flush=True)
-                belgeler(turn["hits"])
                 st.session_state["mesajlar"] += [
-                    {"role": "user", "content": soru, "hits": None},
-                    {"role": "assistant", "content": cevap, "hits": turn["hits"]}]
+                    {"role": "user", "content": soru},
+                    {"role": "assistant", "content": cevap}]
