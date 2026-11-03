@@ -147,15 +147,31 @@ def index():
     return {"chunks": chunks, "matrix": sahte_embed([c["text"] for c in chunks])}
 
 
-def test_prepare_turn_updates_session(persona, index):
+def test_prepare_turn_does_not_mutate_session(persona, index):
+    """Cevap hic gelmezse (record_turn yok) oturum aynen kalir; tekrar deneme deja vu degil."""
     oturum = bot.new_session()
     assert set(oturum) == {"id", "history", "last_motifs", "question_vecs"}
     tur = bot.prepare_turn(oturum, "Çay ne kadar?", index, persona,
                            embed_fn=sahte_embed, rng=random.Random(1))
-    assert set(tur) == {"messages", "hits", "mode", "motifs", "pet", "repeat"}
+    assert set(tur) == {"messages", "hits", "mode", "motifs", "pet", "repeat", "vec"}
+    assert oturum["history"] == []
+    assert oturum["question_vecs"] == []
+    assert oturum["last_motifs"] is None
+    assert tur["repeat"] is False
+
+    tekrar = bot.prepare_turn(oturum, "Çay ne kadar?", index, persona,
+                              embed_fn=sahte_embed, rng=random.Random(2))
+    assert tekrar["repeat"] is False
+
+
+def test_record_turn_commits_vec_and_motifs(persona, index, tmp_path):
+    oturum = bot.new_session()
+    tur = bot.prepare_turn(oturum, "Çay ne kadar?", index, persona,
+                           embed_fn=sahte_embed, rng=random.Random(1))
+    bot.record_turn(oturum, "Çay ne kadar?", "500 TL.", tur, model="sahte",
+                    seconds=0.1, log_path=str(tmp_path / "g.jsonl"))
     assert oturum["last_motifs"] == tur["motifs"]
     assert len(oturum["question_vecs"]) == 1
-    assert tur["repeat"] is False
 
     tur2 = bot.prepare_turn(oturum, "Çay ne kadar?", index, persona,
                             embed_fn=sahte_embed, rng=random.Random(2))

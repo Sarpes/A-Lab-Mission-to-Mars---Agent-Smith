@@ -196,13 +196,13 @@ def prepare_turn(session: dict, question: str, index: dict, persona: dict,
     pet = is_pet_topic(question)
     motifs = pick_motifs(persona, session["last_motifs"], rng)
 
-    session["last_motifs"] = motifs
-    session["question_vecs"].append(vec)
-
+    # Oturum burada DEGISTIRILMEZ: vektor ve motifler tur sozlugunde doner,
+    # record_turn onlari gecmisle birlikte isler. Cevap hic gelmezse (Ollama
+    # kapali, model yok) oturum aynen kalir; tekrar deneme deja vu sayilmaz.
     messages = build_messages(persona, session["history"], question, hits,
                               motifs, pet, repeat)
     return {"messages": messages, "hits": hits, "mode": mode, "motifs": motifs,
-            "pet": pet, "repeat": repeat}
+            "pet": pet, "repeat": repeat, "vec": vec}
 
 
 ###############################################################
@@ -314,6 +314,8 @@ def record_turn(session: dict, question: str, answer: str, turn: dict,
                 model: str, seconds: float, log_path: str = ayarlar.LOG_PATH) -> None:
     session["history"].append({"role": "user", "content": question})
     session["history"].append({"role": "assistant", "content": answer})
+    session["question_vecs"].append(turn["vec"])
+    session["last_motifs"] = turn["motifs"]
 
     kayit = {
         "ts": datetime.datetime.now().isoformat(timespec="seconds"),
