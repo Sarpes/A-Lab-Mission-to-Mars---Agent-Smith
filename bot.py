@@ -66,7 +66,7 @@ BILGI_YOK = "İlgili bilgi bulunamadı."
 ###############################################################
 # STEP 1: PERSONA YUKLEME
 ###############################################################
-# persona.txt yoksa sessizce persona_ornek.txt'ye dusulmez (K-17): demoda
+# persona.txt yoksa sessizce baska bir personaya dusulmez (K-17): demoda
 # yanlis karakteri fark etmeden sunmak, hic baslamamaktan kotudur.
 
 def load_persona(path: str = ayarlar.PERSONA_PATH) -> dict:

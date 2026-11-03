@@ -12,13 +12,13 @@ import ayarlar
 import bot
 import rag
 
-ORNEK = os.path.join(ayarlar.KOK, "persona_ornek.txt")
 CEKIRDEK = "Veri bankalarımda bu bilgi yok, Mr. Anderson."
 
 
 @pytest.fixture
 def persona():
-    return bot.load_persona(ORNEK)
+    # Canlida kullanilan persona (depoda; KARARLAR K-48).
+    return bot.load_persona()
 
 
 # --- persona ----------------------------------------------------------------
@@ -28,14 +28,10 @@ def test_load_persona_sections(persona):
         assert persona[anahtar], anahtar
     assert isinstance(persona["matrix"], list) and isinstance(persona["ipucu"], list)
     assert isinstance(persona["examples"], list)
-
-    if not os.path.exists(ayarlar.PERSONA_PATH):
-        pytest.skip("persona.txt yok (depo kopyasi)")
-    gercek = bot.load_persona()
-    assert len(gercek["matrix"]) == 26
-    assert len(gercek["ipucu"]) == 26
-    assert gercek["refusal"] == CEKIRDEK
-    assert len(gercek["examples"]) == 2
+    assert len(persona["matrix"]) == 26
+    assert len(persona["ipucu"]) == 26
+    assert persona["refusal"] == CEKIRDEK
+    assert len(persona["examples"]) == 2
 
 
 def test_load_persona_missing_raises(tmp_path):
