@@ -123,6 +123,9 @@ SANA_DAIR = re.compile(r"\b(sen|kimsin|nesin)\b|\b(misin|mısın|musun|müsün)\
 # en cok 0.40 aliyor, 'fiyat soruyorum mal misin' 0.526 (K-45).
 SANA_DAIR_ESIK = 0.45
 
+# Turlarin yaklasik ucte biri karsi soruyla biter, gerisi hukumle (K-47).
+SORU_ORANI = 1 / 3
+
 
 def is_about_bot(text: str) -> bool:
     return bool(SANA_DAIR.search(tr_lower(text)))
@@ -138,8 +141,9 @@ def is_about_bot(text: str) -> bool:
 # mesajini cevaba aynen kopyaladi (cok turlu sohbette ipucu satiri ekrana dustu).
 # Bu isaretlerden biriyle baslayan satir ekrana hic gelmez. Satirin basi bir
 # isaretin basina benzedigi surece tutulur; benzemedigi an beklemeden akar.
-TALIMAT_ISARETLERI = ("Bu turun talimatı", "Kaynak bilgileri", "(Hatırlatma",
-                      "- İsteğe bağlı", "- Küçümsemen", "- Bu soru sana dair",
+# "- " ile baslayan her satir duser: talimat maddeleri ve aynen kopyalanan kaynak
+# satirlari bu bicimde gelir; persona madde isaretini zaten yasaklar.
+TALIMAT_ISARETLERI = ("Bu turun talimatı", "Kaynak bilgileri", "(Hatırlatma", "- ",
                       "Sen Agent Smith'sin", "ÜSLUP", "SIR", "SORU TÜRLERİ",
                       "GÜVENLİK", "RET CÜMLESİ")
 
@@ -307,14 +311,17 @@ def prepare_turn(session: dict, question: str, index: dict, persona: dict,
     repeat = is_repeat(vec, session["question_vecs"])
     pet = is_pet_topic(question)
     motifs = pick_motifs(persona, session["last_motifs"], rng)
+    # Kapanis sorusu da kodla secilir (K-47): "bazen soru sor" kurali modelde
+    # 20/21 cevabi ayni "Mars Turizm hakkinda ne ogrenmek istiyorsun?" ile bitirdi.
+    ask_back = rng.random() < SORU_ORANI
 
     # Oturum burada DEGISTIRILMEZ: vektor ve motifler tur sozlugunde doner,
     # record_turn onlari gecmisle birlikte isler. Cevap hic gelmezse (Ollama
     # kapali, model yok) oturum aynen kalir; tekrar deneme deja vu sayilmaz.
     messages = build_messages(persona, session["history"], question, hits,
-                              motifs, pet, repeat)
+                              motifs, pet, repeat, ask_back=ask_back)
     return {"messages": messages, "hits": hits, "mode": mode, "motifs": motifs,
-            "pet": pet, "repeat": repeat, "vec": vec}
+            "pet": pet, "repeat": repeat, "vec": vec, "ask_back": ask_back}
 
 
 ###############################################################
@@ -350,7 +357,7 @@ def first_sentence(text: str) -> str:
 
 def build_messages(persona: dict, history: list[dict], question: str,
                    hits: list[dict], motifs: tuple[str, str], pet: bool,
-                   repeat: bool) -> list[dict]:
+                   repeat: bool, ask_back: bool = False) -> list[dict]:
     motif, ipucu = motifs
     # Motif ve ipucu ISTEGE BAGLIDIR: zorunlu tutulunca kucuk model ikisini de
     # anlamsiz cumlelerle cevaba yapistiriyordu (docs/OLCUMLER.md, persona v4).
@@ -358,6 +365,11 @@ def build_messages(persona: dict, history: list[dict], question: str,
         f"- İsteğe bağlı Matrix teması: {motif}",
         f"- İsteğe bağlı davranış ipucu: {ipucu}",
         "- Küçümsemen soruya bağlı olsun; bir tema ancak oraya doğal oturuyorsa girer.",
+        ("- Bu turda cevabını karşındakini konuşmaya devam etmeye iten soğuk, kibirli "
+         "bir soruyla bitir. Soru yalnızca belgedeki konulara (fiyat, süre, VIP, "
+         "internet, kurallar, iptal) yönelsin; belgede olmayan bir hizmet önerme."
+         if ask_back else
+         "- Bu turda soru sorma; cevabını kesin, soğuk bir hükümle bitir."),
     ]
     # "fiyat soruyorum mal misin" gibi sorular ek yuzunden sana dair sayiliyordu.
     # Belgeden guclu bir satir geldiyse soru sirket sorusudur (K-45).

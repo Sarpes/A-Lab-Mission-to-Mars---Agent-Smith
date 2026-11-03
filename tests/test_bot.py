@@ -13,7 +13,7 @@ import bot
 import rag
 
 ORNEK = os.path.join(ayarlar.KOK, "persona_ornek.txt")
-CEKIRDEK = "Bu bilgi Mars Turizm belgelerinde yok, Mr. Anderson."
+CEKIRDEK = "Veri bankalarımda bu bilgi yok, Mr. Anderson."
 
 
 @pytest.fixture
@@ -83,6 +83,16 @@ def test_strip_instructions_drops_leaked_prompt_lines_across_chunks():
     assert metin.strip() == "Evcil hayvan kabul edilmemektedir, Mr. Anderson.\nKaşık yok."
 
 
+def test_strip_instructions_drops_echoed_source_lines():
+    # Model kaynak satirlarini "- ..." biciminde aynen basa yazdi; persona madde
+    # isaretini zaten yasaklar, bu yuzden "- " ile baslayan satir dusurulur.
+    parcalar = ["- 18 yaşından küçükler yalnızca aileleriyle seyahat edebilir.\n",
+                "- Evcil hayvan kabul edilmemektedir.\n\n",
+                "Evet, Mr. Anderson. Ailenle gidebilirsin."]
+    metin = "".join(bot.strip_instructions(iter(parcalar)))
+    assert metin.strip() == "Evet, Mr. Anderson. Ailenle gidebilirsin."
+
+
 def test_strip_instructions_streams_normal_text_immediately():
     # Isaretle baslamayan satir beklemeden akar (akis gecikmesi yok).
     akis = bot.strip_instructions(iter(["Çay ", "500 TL'dir, ", "Mr. Anderson."]))
@@ -131,6 +141,24 @@ def test_history_assistant_answers_trimmed_for_model(persona):
     assert mesajlar[2]["content"] == "500 TL'dir, Mr. Anderson."
     # Oturumun kendi gecmisi degismez (gunluk ve SSS tam cevabi tutar).
     assert gecmis[1]["content"].endswith("bir lüks.")
+
+
+def test_closing_question_is_decided_per_turn(persona):
+    motifs = (persona["matrix"][0], persona["ipucu"][0])
+    sorulu = bot.build_messages(persona, [], "Çay ne kadar?", HITS, motifs,
+                                pet=False, repeat=False, ask_back=True)[-1]["content"]
+    sorusuz = bot.build_messages(persona, [], "Çay ne kadar?", HITS, motifs,
+                                 pet=False, repeat=False, ask_back=False)[-1]["content"]
+    assert "soğuk, kibirli bir soruyla bitir" in sorulu
+    assert "soru sorma" in sorusuz
+
+
+def test_prepare_turn_asks_back_about_one_turn_in_three(persona, index):
+    rng = random.Random(7)
+    oran = sum(bot.prepare_turn(bot.new_session(), "Çay ne kadar?", index, persona,
+                                embed_fn=sahte_embed, rng=rng)["ask_back"]
+               for _ in range(300)) / 300
+    assert 0.25 < oran < 0.42
 
 
 def test_about_bot_ignored_when_company_lines_found(persona):
@@ -255,7 +283,8 @@ def test_prepare_turn_does_not_mutate_session(persona, index):
     assert set(oturum) == {"id", "history", "last_motifs", "question_vecs"}
     tur = bot.prepare_turn(oturum, "Çay ne kadar?", index, persona,
                            embed_fn=sahte_embed, rng=random.Random(1))
-    assert set(tur) == {"messages", "hits", "mode", "motifs", "pet", "repeat", "vec"}
+    assert set(tur) == {"messages", "hits", "mode", "motifs", "pet", "repeat", "vec",
+                        "ask_back"}
     assert oturum["history"] == []
     assert oturum["question_vecs"] == []
     assert oturum["last_motifs"] is None
