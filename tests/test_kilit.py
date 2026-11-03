@@ -12,33 +12,57 @@ def test_session_locked_after_max_failures():
     assert kilit.session_locked(8, limit=8)
 
 
-def test_global_lock_after_limit_within_window_then_expires():
+def _doldur(g, adet, t0):
+    # adet kadar basarisiz deneme kaydet (hicbiri geri alinmaz)
+    for i in range(adet):
+        kilit.begin_attempt(g, t0 + i, limit=30, window=600)
+
+
+def test_slowdown_boundary_30_vs_31():
     g = kilit.new_guard()
-    t = 1000.0
-    for i in range(30):
-        kilit.record_failure(g, t + i)
-    # 30 basarisizlik: sinir "30'dan fazla", kilit yok
-    assert not kilit.is_locked(g, t + 30, limit=30, window=600)
-    kilit.record_failure(g, t + 30)
-    assert kilit.is_locked(g, t + 31, limit=30, window=600)
-    # ilk kayit 1000'de; 1600'den sonra pencereden duser, sayi 30'a iner
-    assert kilit.is_locked(g, t + 599, limit=30, window=600)
-    assert not kilit.is_locked(g, t + 600.5, limit=30, window=600)
+    _doldur(g, 30, 1000.0)
+    # Pencerede 30 basarisizlik var: "30'dan fazla" degil, yavaslatma yok.
+    _, yavas = kilit.begin_attempt(g, 1030.0, limit=30, window=600)
+    assert yavas is False
+    # Bu deneme de basarisiz sayildi -> 31; sonraki deneme yavaslar.
+    _, yavas = kilit.begin_attempt(g, 1031.0, limit=30, window=600)
+    assert yavas is True
 
 
-def test_old_failures_do_not_count():
+def test_slowdown_expires_with_window():
     g = kilit.new_guard()
-    for i in range(40):
-        kilit.record_failure(g, float(i))
-    # hepsi 10 dakikadan eski
-    assert not kilit.is_locked(g, 700.0, limit=30, window=600)
-    assert len(g["failures"]) == 0
+    _doldur(g, 31, 1000.0)  # anlar 1000..1030
+    _, yavas = kilit.begin_attempt(g, 1100.0, limit=30, window=600)
+    assert yavas is True
+    # 1631'de 1000..1031 arasindaki kayitlar (<= now - window) pencereden duser;
+    # geriye 1100'deki kayit kalir.
+    _, yavas = kilit.begin_attempt(g, 1631.0, limit=30, window=600)
+    assert yavas is False
+    assert list(g["failures"]) == [1100.0, 1631.0]
 
 
-def test_record_failure_is_thread_safe():
+def test_success_removes_provisional_record():
     g = kilit.new_guard()
-    ipler = [threading.Thread(target=lambda: [kilit.record_failure(g, 5.0) for _ in range(100)])
-             for _ in range(8)]
+    _doldur(g, 30, 1000.0)
+    jeton, _ = kilit.begin_attempt(g, 1030.0, limit=30, window=600)
+    kilit.cancel_attempt(g, jeton)  # dogru sifre: basarisizlik sayilmaz
+    assert len(g["failures"]) == 30
+    _, yavas = kilit.begin_attempt(g, 1031.0, limit=30, window=600)
+    assert yavas is False
+    # zaten pencereden dusmus bir jetonu geri almak hata vermez
+    kilit.cancel_attempt(g, 1.0)
+
+
+def test_concurrent_attempts_record_exactly_n():
+    g = kilit.new_guard()
+    baslat = threading.Barrier(8)
+
+    def is_parcacigi():
+        baslat.wait()
+        for _ in range(100):
+            kilit.begin_attempt(g, 5.0, limit=30, window=600)
+
+    ipler = [threading.Thread(target=is_parcacigi) for _ in range(8)]
     for t in ipler:
         t.start()
     for t in ipler:

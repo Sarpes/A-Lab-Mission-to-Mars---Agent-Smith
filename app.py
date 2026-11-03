@@ -48,8 +48,8 @@ import rag
 BEKLEME = "Önünde {n} insan var, Mr. Anderson. Beklemek senin türünün uzmanlık alanı."
 OTURUM_KILIDI = ("Sekiz deneme, Mr. Anderson. Tahmin etmek bir strateji değil, bir semptom. "
                  "Bu oturum kapandı.")
-GENEL_KILIT = ("Kapı şu an herkese kapalı, Mr. Anderson. Çok fazla insan aynı kilidi zorladı. "
-               "Birkaç dakika sonra tekrar dene; sabır, türünüzün nadir erdemlerinden biri.")
+GENEL_YAVAS = ("Çok fazla insan aynı kilidi zorluyor, Mr. Anderson. Kapı artık yavaş açılıyor. "
+               "Bekle; sabır, türünüzün nadir erdemlerinden biri.")
 
 
 ###############################################################
@@ -405,7 +405,9 @@ st.html(BASLIK)
 # text_input'ta deger kalir ve her yeniden calismada tekrar sayilirdi).
 # Kaba kuvvet korumasi (kilit.py): yanlis denemeden sonra 1, 2, 4, 8 sn
 # bekleme; oturumda 8 yanlis -> oturum kapanir; tum oturumlarda 10 dakikada
-# 30'dan fazla yanlis -> pencere gecene kadar hicbir deneme kabul edilmez.
+# 30'dan fazla yanlis -> her deneme once GENEL_YAVASLATMA_SN bekler, sonra
+# normal degerlendirilir; dogru sifre her zaman girer (R14). Deneme gecici
+# basarisizlik olarak kaydedilir, dogruysa cancel_attempt ile geri alinir.
 
 def kapi() -> None:
     st.html('<div class="kapi"><div class="etiket">ERİŞİM DENETİMİ // SEVİYE 7</div>'
@@ -422,17 +424,18 @@ def kapi() -> None:
         gonderildi = st.form_submit_button("GİRİŞ")
     if gonderildi and kod:
         genel = kilit_al()
-        if kilit.is_locked(genel, time.monotonic()):
-            st.error(GENEL_KILIT)
-            st.stop()
+        jeton, yavas = kilit.begin_attempt(genel, time.monotonic())
+        if yavas:
+            st.warning(GENEL_YAVAS)
+            time.sleep(ayarlar.GENEL_YAVASLATMA_SN)
         if hmac.compare_digest(kod.encode("utf-8"), ayarlar.ERISIM_SIFRESI.encode("utf-8")):
+            kilit.cancel_attempt(genel, jeton)
             st.session_state["girdi"] = True
             st.session_state.pop("erisim_kodu", None)
             st.session_state.pop("yanlis", None)
             st.rerun()
         yanlis += 1
         st.session_state["yanlis"] = yanlis
-        kilit.record_failure(genel, time.monotonic())
         print(f"[mars] yanlis erisim kodu (oturumda {yanlis})", file=sys.stderr, flush=True)
         time.sleep(kilit.backoff(yanlis))
         st.error(OTURUM_KILIDI if kilit.session_locked(yanlis)

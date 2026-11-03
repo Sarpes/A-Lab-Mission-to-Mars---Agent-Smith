@@ -88,3 +88,4 @@ SIFRE_MIN = _tamsayi("SIFRE_MIN", 8)                # daha kisa sifreyle uygulam
 SIFRE_DENEME_MAX = _tamsayi("SIFRE_DENEME_MAX", 8)  # oturum basina yanlis deneme
 GENEL_DENEME_MAX = _tamsayi("GENEL_DENEME_MAX", 30)  # tum oturumlarda, pencere icinde
 GENEL_PENCERE_SN = _tamsayi("GENEL_PENCERE_SN", 600)
+GENEL_YAVASLATMA_SN = _tamsayi("GENEL_YAVASLATMA_SN", 5)  # sinir asilinca her denemeye ek bekleme
