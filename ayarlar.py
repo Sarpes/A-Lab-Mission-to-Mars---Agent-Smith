@@ -65,7 +65,7 @@ def _mantik(anahtar, varsayilan):
 
 # --- Ollama ve modeller ------------------------------------------------------
 OLLAMA_HOST = _metin("OLLAMA_HOST", "http://127.0.0.1:11434")
-LLM_MODEL = _metin("LLM_MODEL", "qwen3:14b")
+LLM_MODEL = _metin("LLM_MODEL", "gemma4:latest")
 EMBED_MODEL = _metin("EMBED_MODEL", "bge-m3")
 TEMPERATURE = _ondalik("TEMPERATURE", 0.6)
 THINK = _mantik("THINK", False)

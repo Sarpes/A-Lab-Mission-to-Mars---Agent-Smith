@@ -89,6 +89,21 @@ def test_strip_instructions_streams_normal_text_immediately():
     assert "".join(akis) == "500 TL'dir, Mr. Anderson."
 
 
+RET = "Bu bilgi Mars Turizm belgelerinde yok, Mr. Anderson."
+
+
+def test_late_refusal_after_a_fact_is_dropped():
+    parcalar = ["Ekonomi paket 250.000 TL'dir. Bu bil", "gi Mars Turizm belgelerinde ",
+                "yok, Mr. Anderson. Basit bir soru."]
+    metin = "".join(bot.drop_late_refusal(iter(parcalar), RET))
+    assert metin == "Ekonomi paket 250.000 TL'dir. Basit bir soru."
+
+
+def test_refusal_as_first_sentence_is_kept():
+    parcalar = ["Bu bilgi Mars Turizm", " belgelerinde yok, Mr. Anderson. Bu bir anomali."]
+    assert "".join(bot.drop_late_refusal(iter(parcalar), RET)) == RET + " Bu bir anomali."
+
+
 def test_sansur_without_list_passes_text_through():
     parcalar = ["Çay ", "500 TL'dir."]
     assert "".join(bot.sansur(iter(parcalar), [])) == "Çay 500 TL'dir."

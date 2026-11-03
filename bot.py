@@ -25,7 +25,8 @@
 #   client.show() ile bir kez sorulur ve onbellege alinir.
 #
 # GIRDI    persona.txt, ayarlar, rag.retrieve / rag.embed, Ollama
-# CIKTI    load_persona, tr_lower, is_pet_topic, is_about_bot, sansur,
+# CIKTI    load_persona, tr_lower, is_pet_topic, is_about_bot,
+#          strip_instructions, drop_late_refusal, sansur,
 #          first_sentence, validate_question,
 #          pick_motifs, is_repeat, new_session, prepare_turn, build_messages,
 #          system_message, stream_answer, supports_thinking, preload,
@@ -164,6 +165,35 @@ def strip_instructions(parcalar: Iterator[str]) -> Iterator[str]:
             yield "".join(cikti)
     if satir and not at:
         yield satir
+
+
+# Gec ret kapisi: ret cumlesi ya cevabin ilk cumlesidir ya hic yoktur. Model
+# dogru bilgiyi verip arkasina ret cumlesini ekleyince (gemma4: 2/72) cevap
+# kendisiyle celisir; bu durumda ret cumlesi ekrana verilmez. Metnin sonu ret
+# cumlesinin basina benzedigi surece ("Bu bi…") o kisim tutulur.
+
+def drop_late_refusal(parcalar: Iterator[str], ret: str) -> Iterator[str]:
+    yazildi, tampon = False, ""
+    for parca in parcalar:
+        tampon += parca
+        while (i := tampon.find(ret)) >= 0:
+            once, tampon = tampon[:i], tampon[i + len(ret):]
+            if yazildi or once.strip():
+                tampon = tampon.lstrip(" ")
+                cikti = once
+            else:
+                cikti = once + ret
+            if cikti:
+                yield cikti
+            yazildi = True
+        k = next((k for k in range(min(len(tampon), len(ret) - 1), 0, -1)
+                  if ret.startswith(tampon[-k:])), 0)
+        if len(tampon) > k:
+            cikti, tampon = tampon[:len(tampon) - k], tampon[len(tampon) - k:]
+            yazildi = yazildi or bool(cikti.strip())
+            yield cikti
+    if tampon:
+        yield tampon
 
 
 def sansur(parcalar: Iterator[str], yasak: list[str]) -> Iterator[str]:

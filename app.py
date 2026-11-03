@@ -510,6 +510,7 @@ for m in st.session_state["mesajlar"]:
 def akis(turn: dict, sayac: dict):
     # Ilk tokenin ani sayaca yazilir; ekrana kacislanmis, sayaca ham metin gider.
     akan = bot.strip_instructions(bot.stream_answer(turn["messages"]))
+    akan = bot.drop_late_refusal(akan, persona["refusal"])
     for parca in bot.sansur(akan, persona["yasak"]):
         if "ilk" not in sayac:
             sayac["ilk"] = time.perf_counter()
