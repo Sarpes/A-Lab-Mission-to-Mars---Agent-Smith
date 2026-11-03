@@ -522,7 +522,7 @@ def hata_goster(yer, soru: str, mesaj: str) -> None:
                                      {"role": "assistant", "content": mesaj, "hits": None}]
 
 
-soru = st.chat_input("Sorunu yaz, Mr. Anderson…", submit_mode="disable")
+soru = st.chat_input("", submit_mode="disable")
 if soru:
     gecerli, ret = bot.validate_question(soru)
     if gecerli or ret:
