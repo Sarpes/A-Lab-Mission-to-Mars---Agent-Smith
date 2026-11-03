@@ -26,7 +26,7 @@
 #
 # GIRDI    persona.txt, ayarlar, rag.retrieve / rag.embed, Ollama
 # CIKTI    load_persona, tr_lower, is_pet_topic, is_about_bot, sansur,
-#          validate_question,
+#          first_sentence, validate_question,
 #          pick_motifs, is_repeat, new_session, prepare_turn, build_messages,
 #          system_message, stream_answer, supports_thinking, preload,
 #          warmup, record_turn,
@@ -127,6 +127,44 @@ def is_about_bot(text: str) -> bool:
 # Liste persona.txt'nin YASAK_KELIMELER bolumundedir: modele hic gonderilmez
 # ve depoya girmez. Bir kelime iki parcaya bolunebildigi icin metin son
 # bosluga kadar tutulur; boylece kelimeler yalnizca tamamlaninca denetlenir.
+
+# Istem sizintisi kapisi: model zaman zaman turun talimatini ya da sistem
+# mesajini cevaba aynen kopyaladi (cok turlu sohbette ipucu satiri ekrana dustu).
+# Bu isaretlerden biriyle baslayan satir ekrana hic gelmez. Satirin basi bir
+# isaretin basina benzedigi surece tutulur; benzemedigi an beklemeden akar.
+TALIMAT_ISARETLERI = ("Bu turun talimatı", "Kaynak bilgileri", "(Hatırlatma",
+                      "- İsteğe bağlı", "- Küçümsemen", "- Bu soru sana dair",
+                      "Sen Agent Smith'sin", "ÜSLUP", "SIR", "SORU TÜRLERİ",
+                      "GÜVENLİK", "RET CÜMLESİ")
+
+
+def strip_instructions(parcalar: Iterator[str]) -> Iterator[str]:
+    satir, at = "", None  # at: None = karar yok, True = satiri at, False = akit
+    for parca in parcalar:
+        cikti = []
+        for ch in parca:
+            if at is False:
+                cikti.append(ch)
+                if ch == "\n":
+                    at = None
+                continue
+            satir += ch
+            if ch == "\n":
+                if not at:
+                    cikti.append(satir)
+                satir, at = "", None
+            elif at is None:
+                bas = satir.lstrip()
+                if any(bas.startswith(i) for i in TALIMAT_ISARETLERI):
+                    at = True
+                elif bas and not any(i.startswith(bas) for i in TALIMAT_ISARETLERI):
+                    cikti.append(satir)
+                    satir, at = "", False
+        if cikti:
+            yield "".join(cikti)
+    if satir and not at:
+        yield satir
+
 
 def sansur(parcalar: Iterator[str], yasak: list[str]) -> Iterator[str]:
     kokler = [tr_lower(k) for k in yasak]
@@ -268,6 +306,13 @@ def system_message(persona: dict) -> dict:
     return {"role": "system", "content": sistem}
 
 
+CUMLE_SONU = re.compile(r"(?<!Mr\.)(?<=[.!?…])\s+")
+
+
+def first_sentence(text: str) -> str:
+    return CUMLE_SONU.split(text.strip(), maxsplit=1)[0]
+
+
 def build_messages(persona: dict, history: list[dict], question: str,
                    hits: list[dict], motifs: tuple[str, str], pet: bool,
                    repeat: bool) -> list[dict]:
@@ -294,8 +339,8 @@ def build_messages(persona: dict, history: list[dict], question: str,
     # gerekebilecegi durumda anilir (sana dair soruda hic anilmaz).
     ret = persona["refusal"]
     hitap = "Hitabın tekil \"sen\"; \"siz\" ve \"sizin\" yazma."
-    kaynak = ("\n".join(f"(satır {h['line']}) {h['text']}" for h in hits)
-              if hits else BILGI_YOK)
+    # Satir numarasi modele gitmez: model onu "Satır 10'a göre…" diye okuyordu.
+    kaynak = ("\n".join(f"- {h['text']}" for h in hits) if hits else BILGI_YOK)
     if sana_dair:
         kaynak = "Bu soru için belge gerekmez."
         hatirlatma = f"(Hatırlatma: Ret cümlesi yok, uydurma yok. {hitap})"
@@ -306,7 +351,8 @@ def build_messages(persona: dict, history: list[dict], question: str,
             f"cevaplamıyorsa ilk cümlen \"{ret}\" olur; bu cümle ya cevabın ilk "
             "cümlesidir ya hiç yoktur, asla bilginin arkasına eklenmez. Sohbet, "
             "fikir ve konu dışı sorularda ret cümlesi yok. Tahmin etme, hesaplama, "
-            f"uydurma. {hitap})"
+            "uydurma; satırda yazmayan bir sonuç, ücret ya da ceza ekleme. "
+            f"{hitap})"
         )
     else:
         hatirlatma = (
@@ -321,8 +367,15 @@ def build_messages(persona: dict, history: list[dict], question: str,
         + hatirlatma
     )
 
+    # Gecmisteki kendi cevaplarindan yalnizca ilk cumle (bilgi ya da ret) modele
+    # gider. Tam cevaplar gorulunce kucuk model kendi kucumseme cumlelerini sablon
+    # sanip aynen tekrarliyordu (docs/OLCUMLER.md, cok turlu sohbet).
+    gecmis = [{"role": m["role"],
+               "content": first_sentence(m["content"]) if m["role"] == "assistant"
+               else m["content"]}
+              for m in history[-2 * ayarlar.GECMIS_TUR:]]
     return ([system_message(persona)]
-            + list(history[-2 * ayarlar.GECMIS_TUR:])
+            + gecmis
             + [{"role": "user", "content": kullanici}])
 
 
@@ -351,7 +404,8 @@ def stream_answer(messages: list[dict], model: str = ayarlar.LLM_MODEL,
         "model": model,
         "messages": messages,
         "stream": True,
-        "options": {"temperature": temperature, "num_ctx": ayarlar.NUM_CTX},
+        "options": {"temperature": temperature, "num_ctx": ayarlar.NUM_CTX,
+                    "num_predict": ayarlar.NUM_PREDICT},
         "keep_alive": ayarlar.KEEP_ALIVE,
     }
     if supports_thinking(model, client):

@@ -509,7 +509,8 @@ for m in st.session_state["mesajlar"]:
 
 def akis(turn: dict, sayac: dict):
     # Ilk tokenin ani sayaca yazilir; ekrana kacislanmis, sayaca ham metin gider.
-    for parca in bot.sansur(bot.stream_answer(turn["messages"]), persona["yasak"]):
+    akan = bot.strip_instructions(bot.stream_answer(turn["messages"]))
+    for parca in bot.sansur(akan, persona["yasak"]):
         if "ilk" not in sayac:
             sayac["ilk"] = time.perf_counter()
         sayac["parcalar"].append(parca)

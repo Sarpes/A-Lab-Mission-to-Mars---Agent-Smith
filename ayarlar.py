@@ -70,6 +70,9 @@ EMBED_MODEL = _metin("EMBED_MODEL", "bge-m3")
 TEMPERATURE = _ondalik("TEMPERATURE", 0.6)
 THINK = _mantik("THINK", False)
 NUM_CTX = _tamsayi("NUM_CTX", 8192)
+# Cevap basina en cok token. 2-4 cumlelik cevap ~60-150 token tutar; sinir,
+# kendini tekrar eden bir uretimin yuvayi baglami doldurana kadar tutmasini onler.
+NUM_PREDICT = _tamsayi("NUM_PREDICT", 400)
 KEEP_ALIVE = _metin("KEEP_ALIVE", "30m")
 
 # --- Erisim (retrieval) ------------------------------------------------------

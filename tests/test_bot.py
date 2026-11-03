@@ -74,6 +74,21 @@ def test_sansur_masks_forbidden_words_across_chunks():
     assert "ven" not in bot.tr_lower(metin)
 
 
+def test_strip_instructions_drops_leaked_prompt_lines_across_chunks():
+    parcalar = ["Bu turun tal", "imatı:  \n- İsteğe bağlı Matrix teması: Zion  \n",
+                "- İsteğe ", "bağlı davranış ipucu: boş mama kabı  \n\n",
+                "Evcil hayvan kabul edilmemektedir, Mr. Anderson.\n", "Kaşık yok."]
+    metin = "".join(bot.strip_instructions(iter(parcalar)))
+    assert metin.strip() == "Evcil hayvan kabul edilmemektedir, Mr. Anderson.\nKaşık yok."
+
+
+def test_strip_instructions_streams_normal_text_immediately():
+    # Isaretle baslamayan satir beklemeden akar (akis gecikmesi yok).
+    akis = bot.strip_instructions(iter(["Çay ", "500 TL'dir, ", "Mr. Anderson."]))
+    assert next(akis) == "Çay "
+    assert "".join(akis) == "500 TL'dir, Mr. Anderson."
+
+
 def test_sansur_without_list_passes_text_through():
     parcalar = ["Çay ", "500 TL'dir."]
     assert "".join(bot.sansur(iter(parcalar), [])) == "Çay 500 TL'dir."
@@ -81,6 +96,25 @@ def test_sansur_without_list_passes_text_through():
 
 def test_persona_has_forbidden_word_list(persona):
     assert isinstance(persona["yasak"], list) and persona["yasak"]
+
+
+def test_first_sentence_keeps_mr_anderson_together():
+    assert bot.first_sentence("Merhaba, Mr. Anderson. Ne istiyorsun?") == "Merhaba, Mr. Anderson."
+    assert bot.first_sentence("Ekonomi paket 250.000 TL'dir. Lüks.") == "Ekonomi paket 250.000 TL'dir."
+    assert bot.first_sentence("Tek cümle") == "Tek cümle"
+
+
+def test_history_assistant_answers_trimmed_for_model(persona):
+    motifs = (persona["matrix"][0], persona["ipucu"][0])
+    gecmis = [{"role": "user", "content": "Çay ne kadar? Söyle."},
+              {"role": "assistant",
+               "content": "500 TL'dir, Mr. Anderson. Senin gibi insanlar için bir lüks."}]
+    mesajlar = bot.build_messages(persona, gecmis, "Kahve?", HITS, motifs,
+                                  pet=False, repeat=False)
+    assert mesajlar[1]["content"] == "Çay ne kadar? Söyle."
+    assert mesajlar[2]["content"] == "500 TL'dir, Mr. Anderson."
+    # Oturumun kendi gecmisi degismez (gunluk ve SSS tam cevabi tutar).
+    assert gecmis[1]["content"].endswith("bir lüks.")
 
 
 def test_about_bot_question_skips_wound_and_refusal(persona):
@@ -153,7 +187,9 @@ def test_build_messages_shape(persona):
     assert persona["wound"] not in kullanici
     assert "déjà vu" not in kullanici
     assert "Kaynak bilgileri" in kullanici
-    assert "(satır 9) Mars'ta kahve ücretsiz, çay 500 TL'dir." in kullanici
+    # Satir numarasi modele gitmez (model "Satir 10'a gore" diye okuyordu).
+    assert "- Mars'ta kahve ücretsiz, çay 500 TL'dir." in kullanici
+    assert "satır 9" not in kullanici
     assert "Çay ne kadar?" in kullanici
 
     yarali = bot.build_messages(persona, [], "Köpeğimi getirebilir miyim?", [],
@@ -269,7 +305,8 @@ def test_stream_answer_skips_thinking_and_respects_capability():
     assert dusunen.chat_kwargs["stream"] is True
     assert dusunen.chat_kwargs["keep_alive"] == ayarlar.KEEP_ALIVE
     assert dusunen.chat_kwargs["options"] == {"temperature": ayarlar.TEMPERATURE,
-                                              "num_ctx": ayarlar.NUM_CTX}
+                                              "num_ctx": ayarlar.NUM_CTX,
+                                              "num_predict": ayarlar.NUM_PREDICT}
 
     duz = SahteIstemci(["completion"])
     assert "".join(bot.stream_answer(mesajlar, model="sahte-duz", client=duz)) == "Çay 500 TL."
