@@ -69,9 +69,29 @@ def embed(texts: list[str]) -> np.ndarray:
     return matris / norm
 
 
-def load_index(path: str = ayarlar.DATA_PATH, embed_fn=embed) -> dict:
+# Arama kelimeleri (K-41): bazi satirlar sorulma bicimindeki kelimeleri hic
+# icermez. "Ekonomi paket 250.000 TL" satirinda fiyat/ucret/tutar gecmedigi icin
+# "Mars'a gitmek ne kadar tutar?" bu satiri ilk 5'e bile getirmiyordu. Kelimeler
+# YALNIZCA embedding'e eklenir; modele ve ekrana belgedeki satir aynen gider.
+# Bicim: "5: fiyat, ucret" (satir no: kelimeler); "#" ile baslayan satir yorum.
+
+def load_search_words(path: str = ayarlar.KELIME_PATH) -> dict[int, str]:
+    kelimeler = {}
+    with open(path, encoding="utf-8-sig") as f:
+        for satir in f.read().replace("\r", "").split("\n"):
+            if satir.strip() and not satir.startswith("#"):
+                no, metin = satir.split(":", 1)
+                kelimeler[int(no)] = metin.strip()
+    return kelimeler
+
+
+def load_index(path: str = ayarlar.DATA_PATH, embed_fn=embed,
+               kelime_path: str | None = ayarlar.KELIME_PATH) -> dict:
     chunks = load_chunks(path)
-    matrix = embed_fn([c["text"] for c in chunks])
+    kelimeler = load_search_words(kelime_path) if kelime_path else {}
+    metinler = [f"{c['text']} ({kelimeler[c['line']]})" if c["line"] in kelimeler
+                else c["text"] for c in chunks]
+    matrix = embed_fn(metinler)
     return {"chunks": chunks, "matrix": matrix}
 
 

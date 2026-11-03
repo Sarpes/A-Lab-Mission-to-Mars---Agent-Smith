@@ -33,6 +33,8 @@ KOK = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(KOK, ".env"), override=False)
 
 DATA_PATH = os.path.join(KOK, "data", "mars_turizm.txt")
+# Satir basina arama kelimeleri (yalnizca embedding'e eklenir, KARARLAR K-41)
+KELIME_PATH = os.path.join(KOK, "data", "arama_kelimeleri.txt")
 PERSONA_PATH = os.path.join(KOK, "persona.txt")
 LOG_PATH = os.path.join(KOK, "logs", "sohbet.jsonl")
 

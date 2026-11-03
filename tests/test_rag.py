@@ -32,7 +32,31 @@ def index(tmp_path):
         "Evcil hayvan kabul edilmez.\n",
         encoding="utf-8",
     )
-    return rag.load_index(str(dosya), embed_fn=sahte_embed)
+    return rag.load_index(str(dosya), embed_fn=sahte_embed, kelime_path=None)
+
+
+def test_search_words_change_only_the_embedded_text(tmp_path):
+    dosya = tmp_path / "mini.txt"
+    dosya.write_text("BASLIK\n\nEkonomi paket 250 TL.\nKahve ucretsiz.\n", encoding="utf-8")
+    kelimeler = tmp_path / "kelimeler.txt"
+    kelimeler.write_text("# yorum satiri\n3: fiyat, ucret\n", encoding="utf-8")
+    gorulen = []
+
+    def kaydeden_embed(texts):
+        gorulen.extend(texts)
+        return sahte_embed(texts)
+
+    ix = rag.load_index(str(dosya), embed_fn=kaydeden_embed, kelime_path=str(kelimeler))
+    assert gorulen == ["Ekonomi paket 250 TL. (fiyat, ucret)", "Kahve ucretsiz."]
+    # Modele ve ekrana giden metin belgedeki satirin aynisidir.
+    assert ix["chunks"][0]["text"] == "Ekonomi paket 250 TL."
+    assert rag.search("fiyat ne", ix, embed_fn=sahte_embed, threshold=0.1)[0]["line"] == 3
+
+
+def test_real_search_words_cover_every_fact_line():
+    kelimeler = rag.load_search_words()
+    assert sorted(kelimeler) == [c["line"] for c in rag.load_chunks()]
+    assert "fiyat" in kelimeler[5]
 
 
 def test_load_chunks_real_file():
