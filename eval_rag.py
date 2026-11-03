@@ -2,7 +2,10 @@
 # MARS TURIZM CHATBOT  |  ERISIM TESTI VE ESIK TARAMASI
 ###############################################################
 # Bu dosya, rag.py'nin dogru satiri getirip getirmedigini ve cevapsiz (kapsam
-# disi) sorularda bos dondugunu OLCER; RAG_ESIK degerini bu olcumden secer.
+# disi) sorularda bos dondugunu OLCER. Onceden RAG_ESIK buradan secilirdi;
+# 03.11.2026'dan beri esik UCTAN UCA olcumle secilir (KARARLAR K-46,
+# outputs/persona_ab/esik_uctan_uca.py): kapsam disi sorulari artik model
+# reddediyor, bu tarama yalnizca erisimin kendisini izler.
 #
 # NEDEN DONDURULMUS SORU SETI (eval/rag_sorular.json)
 #   Farkli esikler ayni sorularla olculmezse sayilar kiyaslanamaz. Set bir kez

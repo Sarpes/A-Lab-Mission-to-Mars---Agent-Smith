@@ -79,7 +79,7 @@ KEEP_ALIVE = _metin("KEEP_ALIVE", "30m")
 
 # --- Erisim (retrieval) ------------------------------------------------------
 TOP_K = _tamsayi("TOP_K", 3)
-RAG_ESIK = _ondalik("RAG_ESIK", 0.55)        # eval_rag.py taramasi, bkz. docs/OLCUMLER.md
+RAG_ESIK = _ondalik("RAG_ESIK", 0.40)        # uctan uca olcum (K-46), bkz. docs/OLCUMLER.md
 TEKRAR_ESIK = _ondalik("TEKRAR_ESIK", 0.92)  # GECICI
 
 # --- Sohbet limitleri --------------------------------------------------------

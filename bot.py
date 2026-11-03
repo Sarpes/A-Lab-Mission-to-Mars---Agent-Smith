@@ -119,6 +119,11 @@ def is_pet_topic(text: str) -> bool:
 SANA_DAIR = re.compile(r"\b(sen|kimsin|nesin)\b|\b(misin|mısın|musun|müsün)\b")
 
 
+# Bu skorun ustunde satir varsa soru sirket sorusudur. Olcum: sana dair sorular
+# en cok 0.40 aliyor, 'fiyat soruyorum mal misin' 0.526 (K-45).
+SANA_DAIR_ESIK = 0.45
+
+
 def is_about_bot(text: str) -> bool:
     return bool(SANA_DAIR.search(tr_lower(text)))
 
@@ -354,7 +359,10 @@ def build_messages(persona: dict, history: list[dict], question: str,
         f"- İsteğe bağlı davranış ipucu: {ipucu}",
         "- Küçümsemen soruya bağlı olsun; bir tema ancak oraya doğal oturuyorsa girer.",
     ]
-    sana_dair = is_about_bot(question)
+    # "fiyat soruyorum mal misin" gibi sorular ek yuzunden sana dair sayiliyordu.
+    # Belgeden guclu bir satir geldiyse soru sirket sorusudur (K-45).
+    sana_dair = is_about_bot(question) and not any(
+        h["score"] >= SANA_DAIR_ESIK for h in hits)
     if sana_dair:
         tur.append("- Bu soru sana dair. Cevabın \"Benim ne olduğum\" ile başlar ve "
                    "bunun karşındakini ilgilendirmediğini söyler; sonra kibirle "

@@ -10,6 +10,7 @@ import pytest
 
 import ayarlar
 import bot
+import rag
 
 ORNEK = os.path.join(ayarlar.KOK, "persona_ornek.txt")
 CEKIRDEK = "Bu bilgi Mars Turizm belgelerinde yok, Mr. Anderson."
@@ -132,6 +133,18 @@ def test_history_assistant_answers_trimmed_for_model(persona):
     assert gecmis[1]["content"].endswith("bir lüks.")
 
 
+def test_about_bot_ignored_when_company_lines_found(persona):
+    # "fiyat soruyorum ... misin" bir sirket sorusudur: satir geldiyse normal akis.
+    motifs = (persona["matrix"][0], persona["ipucu"][0])
+    fiyat = [{"line": 5, "text": "Ekonomi paket 250.000 TL, VIP paket 750.000 TL'dir.",
+              "score": 0.6}]
+    mesajlar = bot.build_messages(persona, [], "fiyat soruyorum anlıyor musun", fiyat,
+                                  motifs, pet=False, repeat=False)
+    kullanici = mesajlar[-1]["content"]
+    assert "Bu soru sana dair" not in kullanici
+    assert "- Ekonomi paket 250.000 TL" in kullanici
+
+
 def test_about_bot_question_skips_wound_and_refusal(persona):
     motifs = (persona["matrix"][0], persona["ipucu"][0])
     mesajlar = bot.build_messages(persona, [], "Sen hayvan mısın?", [], motifs,
@@ -232,7 +245,8 @@ def sahte_embed(texts):
 @pytest.fixture
 def index():
     chunks = [{"line": 9, "text": "Mars'ta kahve ücretsiz, çay 500 TL'dir."}]
-    return {"chunks": chunks, "matrix": sahte_embed([c["text"] for c in chunks])}
+    return {"chunks": chunks, "matrix": sahte_embed([c["text"] for c in chunks]),
+            "matrix_folded": sahte_embed([rag.fold(c["text"]) for c in chunks])}
 
 
 def test_prepare_turn_does_not_mutate_session(persona, index):

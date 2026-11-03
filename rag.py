@@ -22,7 +22,8 @@
 #   birlestirilip tekrar aranir.
 #
 # GIRDI    ayarlar.DATA_PATH, Ollama (bge-m3)
-# CIKTI    load_chunks, embed, load_index, search, rank, retrieve
+# CIKTI    load_chunks, load_search_words, fold, embed, load_index, search,
+#          rank, retrieve
 ###############################################################
 
 import functools
@@ -85,14 +86,25 @@ def load_search_words(path: str = ayarlar.KELIME_PATH) -> dict[int, str]:
     return kelimeler
 
 
+# Turkce karakter katlama (K-44): telefonda cogu kisi "Internet var mi" yazar.
+# bge-m3 "İnternet var mı?" icin satir 8'e 0.579, "Internet var mi" icin 0.473
+# veriyordu. Indeks iki kez tutulur (orijinal ve katlanmis); skor ikisinin
+# buyugudur. Boylece soru hangi bicimde yazilirsa yazilsin kendi esine benzer.
+KATLAMA = str.maketrans("çğıöşüÇĞİÖŞÜâîû", "cgiosuCGIOSUaiu")
+
+
+def fold(text: str) -> str:
+    return text.translate(KATLAMA)
+
+
 def load_index(path: str = ayarlar.DATA_PATH, embed_fn=embed,
                kelime_path: str | None = ayarlar.KELIME_PATH) -> dict:
     chunks = load_chunks(path)
     kelimeler = load_search_words(kelime_path) if kelime_path else {}
     metinler = [f"{c['text']} ({kelimeler[c['line']]})" if c["line"] in kelimeler
                 else c["text"] for c in chunks]
-    matrix = embed_fn(metinler)
-    return {"chunks": chunks, "matrix": matrix}
+    return {"chunks": chunks, "matrix": embed_fn(metinler),
+            "matrix_folded": embed_fn([fold(m) for m in metinler])}
 
 
 ###############################################################
@@ -104,7 +116,9 @@ def load_index(path: str = ayarlar.DATA_PATH, embed_fn=embed,
 
 def rank(query: str, index: dict, embed_fn=embed) -> list[dict]:
     q = np.asarray(embed_fn([query]))[0]
-    skorlar = index["matrix"] @ q
+    katli = fold(query)
+    qk = q if katli == query else np.asarray(embed_fn([katli]))[0]
+    skorlar = np.maximum(index["matrix"] @ q, index["matrix_folded"] @ qk)
     sonuc = [
         {"line": c["line"], "text": c["text"], "score": float(s)}
         for c, s in zip(index["chunks"], skorlar)

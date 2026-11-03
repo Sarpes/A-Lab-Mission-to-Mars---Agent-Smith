@@ -1,7 +1,7 @@
 # Arama kelimeleri: satir no: kelimeler. Yalnizca embedding'e eklenir (rag.py, KARARLAR K-41).
 # Modele ve ekrana mars_turizm.txt satiri aynen gider. Belgede olmayan konulara
 # (odeme, indirim, bagaj, telefon, gece) dokunan kelime YAZILMAZ: YOK sorularini cekerler.
-3: kuruluş yılı, ne zamandan beri var, şirketin geçmişi
+3: kuruluş yılı, ne zaman kuruldu, kuruluş tarihi, ne zamandan beri var, şirketin geçmişi
 4: süre, kaç gün sürer, tur ne kadar sürer, uzunluk
 5: fiyat, ücret, ne kadar tutar, kaç para, maliyet, bilet ücreti
 6: VIP ayrıcalıkları, pakette neler var, ekstra hizmetler
