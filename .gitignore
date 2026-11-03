@@ -1,0 +1,16 @@
+# Gizli ve uretilen dosyalar
+.env
+logs/
+outputs/
+__pycache__/
+.pytest_cache/
+.vscode/
+.superpowers/
+
+# DEMO SONRASI ÇIKARILACAK (10.11.2026) - KARARLAR K-16
+persona.txt
+eval/sohbetler.json
+eval_bot.py
+tests/test_eval_bot.py
+docs/
+Örnek Dosyalar ve Yönergeler/

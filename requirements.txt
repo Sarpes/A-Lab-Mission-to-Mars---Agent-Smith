@@ -1,0 +1,5 @@
+streamlit>=1.65
+ollama
+numpy
+python-dotenv
+pytest
