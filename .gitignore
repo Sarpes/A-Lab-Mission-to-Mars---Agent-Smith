@@ -9,6 +9,7 @@ __pycache__/
 
 # DEMO SONRASI ÇIKARILACAK (10.11.2026) - KARARLAR K-16
 persona.txt
+persona_v*.txt
 eval/sohbetler.json
 eval_bot.py
 tests/test_eval_bot.py

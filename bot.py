@@ -25,7 +25,8 @@
 #   client.show() ile bir kez sorulur ve onbellege alinir.
 #
 # GIRDI    persona.txt, ayarlar, rag.retrieve / rag.embed, Ollama
-# CIKTI    load_persona, tr_lower, is_pet_topic, validate_question,
+# CIKTI    load_persona, tr_lower, is_pet_topic, is_about_bot, sansur,
+#          validate_question,
 #          pick_motifs, is_repeat, new_session, prepare_turn, build_messages,
 #          system_message, stream_answer, supports_thinking, preload,
 #          warmup, record_turn,
@@ -53,7 +54,7 @@ import rag
 # metin bolumleri ise bolumun tum metninden olusur.
 METIN_BOLUMLERI = {"SISTEM": "system", "RET_CUMLESI": "refusal", "YARA": "wound"}
 LISTE_BOLUMLERI = {"RET_ORNEKLERI": "examples", "MATRIX_MOTIFLERI": "matrix",
-                   "IPUCLARI": "ipucu"}
+                   "IPUCLARI": "ipucu", "YASAK_KELIMELER": "yasak"}
 
 # Evcil hayvan / kural konusu kokleri (K-04). Bu liste, depodaki tek izinli istisnadir (K-16).
 EVCIL_KOKLERI = ("evcil", "hayvan", "kedi", "köpe", "kuş", "kural", "yasak", "izin ver")
@@ -109,6 +110,43 @@ def tr_lower(s: str) -> str:
 def is_pet_topic(text: str) -> bool:
     kucuk = tr_lower(text)
     return any(kok in kucuk for kok in EVCIL_KOKLERI)
+
+
+# Ajanin kendisine dair soru: "sen", "kimsin", "nesin" ya da 2. tekil soru eki
+# ("robot musun?", "insan mısın?"). Bu sorular sirket sorusu degildir; ret cumlesi
+# ve evcil hayvan yarasi yerine kibirli savusturma ister (docs/OLCUMLER.md, v4).
+SANA_DAIR = re.compile(r"\b(sen|kimsin|nesin)\b|\b(misin|mısın|musun|müsün)\b")
+
+
+def is_about_bot(text: str) -> bool:
+    return bool(SANA_DAIR.search(tr_lower(text)))
+
+
+# Cikti kapisi: istem kurali kucuk modelde yetmedi (sana dair soruda kelime
+# 3/3 sizdi, docs/OLCUMLER.md). Yasak kokleri iceren her kelime "…" olur.
+# Liste persona.txt'nin YASAK_KELIMELER bolumundedir: modele hic gonderilmez
+# ve depoya girmez. Bir kelime iki parcaya bolunebildigi icin metin son
+# bosluga kadar tutulur; boylece kelimeler yalnizca tamamlaninca denetlenir.
+
+def sansur(parcalar: Iterator[str], yasak: list[str]) -> Iterator[str]:
+    kokler = [tr_lower(k) for k in yasak]
+    if not kokler:
+        yield from parcalar
+        return
+
+    def maskele(metin: str) -> str:
+        return re.sub(r"\w+", lambda m: "…" if any(k in tr_lower(m.group())
+                                                   for k in kokler) else m.group(), metin)
+
+    tampon = ""
+    for parca in parcalar:
+        tampon += parca
+        kesim = max(tampon.rfind(" "), tampon.rfind("\n"))
+        if kesim >= 0:
+            yield maskele(tampon[:kesim + 1])
+            tampon = tampon[kesim + 1:]
+    if tampon:
+        yield maskele(tampon)
 
 
 ###############################################################
@@ -223,8 +261,8 @@ def system_message(persona: dict) -> dict:
     sistem = "\n\n".join([
         persona["system"],
         f"RET CÜMLESİ (kelimesi kelimesine): {persona['refusal']}",
-        "Ret cevabı yapı örnekleri. Yalnızca OLGU sorusunun cevabı satırlarda yokken "
-        "geçerlidir; fikir ve genel bilgi sorularında kullanılmaz (yapı örneği, "
+        "Ret cevabı yapı örnekleri. Yalnızca ŞİRKET sorusunun cevabı satırlarda yokken "
+        "geçerlidir; fikir, sohbet, konu dışı ve sana dair sorularda kullanılmaz (yapı örneği, "
         f"kelimesi kelimesine kopyalama):\n{ornekler}",
     ])
     return {"role": "system", "content": sistem}
@@ -234,29 +272,53 @@ def build_messages(persona: dict, history: list[dict], question: str,
                    hits: list[dict], motifs: tuple[str, str], pet: bool,
                    repeat: bool) -> list[dict]:
     motif, ipucu = motifs
+    # Motif ve ipucu ISTEGE BAGLIDIR: zorunlu tutulunca kucuk model ikisini de
+    # anlamsiz cumlelerle cevaba yapistiriyordu (docs/OLCUMLER.md, persona v4).
     tur = [
-        f"- Matrix motifi: {motif}. Küçümseme cümlende buna bir gönderme yap.",
-        f"- İpucu: Sen, Agent Smith, şu anda bununla meşgulsün: {ipucu}. Bunu "
-        "kendinden söz eden bir yan cümlede (\"ben ...\"), kendi kelimelerinle "
-        "sezdir; ifadeyi olduğu gibi yazma.",
+        f"- İsteğe bağlı Matrix teması: {motif}",
+        f"- İsteğe bağlı davranış ipucu: {ipucu}",
+        "- Küçümsemen soruya bağlı olsun; bir tema ancak oraya doğal oturuyorsa girer.",
     ]
-    if pet:
+    sana_dair = is_about_bot(question)
+    if sana_dair:
+        tur.append("- Bu soru sana dair. Cevabın \"Benim ne olduğum\" ile başlar ve "
+                   "bunun karşındakini ilgilendirmediğini söyler; sonra kibirle "
+                   "Mars Turizm hakkında ne istediğini sorar.")
+    elif pet:
         tur.append("- " + persona["wound"])
     if repeat:
         tur.append("- Bu soru bu oturumda daha önce soruldu. Bunu bir déjà vu olarak "
                    "fark et: Matrix'te bir şey değiştirildi. Bilgiyi yine doğru ver.")
 
-    if hits:
-        kaynak = "\n".join(f"(satır {h['line']}) {h['text']}" for h in hits)
+    # Hatirlatma uretime en yakin metindir; ret cumlesi yalnizca gercekten
+    # gerekebilecegi durumda anilir (sana dair soruda hic anilmaz).
+    ret = persona["refusal"]
+    hitap = "Hitabın tekil \"sen\"; \"siz\" ve \"sizin\" yazma."
+    kaynak = ("\n".join(f"(satır {h['line']}) {h['text']}" for h in hits)
+              if hits else BILGI_YOK)
+    if sana_dair:
+        kaynak = "Bu soru için belge gerekmez."
+        hatirlatma = f"(Hatırlatma: Ret cümlesi yok, uydurma yok. {hitap})"
+    elif hits:
+        hatirlatma = (
+            "(Hatırlatma: Sorulanın cevabı yukarıdaki satırlarda açıkça yazıyorsa "
+            "onu ver ve ret cümlesini HİÇ yazma. Yalnızca satırlar sorulanı "
+            f"cevaplamıyorsa ilk cümlen \"{ret}\" olur; bu cümle ya cevabın ilk "
+            "cümlesidir ya hiç yoktur, asla bilginin arkasına eklenmez. Sohbet, "
+            "fikir ve konu dışı sorularda ret cümlesi yok. Tahmin etme, hesaplama, "
+            f"uydurma. {hitap})"
+        )
     else:
-        kaynak = BILGI_YOK
+        hatirlatma = (
+            "(Hatırlatma: Kaynak satırı yok. Bu bir şirket sorusuysa ilk cümlen "
+            f"\"{ret}\" olur. Selam, teşekkür, fikir ya da konu dışı bir soruysa ret "
+            f"cümlesini YAZMA. Tahmin etme, uydurma. {hitap})"
+        )
     kullanici = (
         f"Kaynak bilgileri:\n{kaynak}\n\n"
         "Bu turun talimatı:\n" + "\n".join(tur) + "\n\n"
         f"Soru: {question}\n\n"
-        "(Hatırlatma: Olgu sorusunda cevap yukarıdaki satırlarda açıkça yoksa ilk "
-        f"cümlen \"{persona['refusal']}\" olur. Fikir sorusunda bu cümleyi kullanma. "
-        "Tahmin etme, hesaplama, uydurma.)"
+        + hatirlatma
     )
 
     return ([system_message(persona)]

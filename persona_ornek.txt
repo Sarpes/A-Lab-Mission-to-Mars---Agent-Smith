@@ -29,3 +29,6 @@ Bu soru evcil hayvanlara veya şirket kurallarına değiniyor. Belgedeki kuralı
 - güler yüzlü bir kapanış
 - kısa bir teşekkür
 - iyi yolculuklar dileği
+
+## YASAK_KELIMELER
+- rakip

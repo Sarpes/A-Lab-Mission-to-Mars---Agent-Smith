@@ -56,6 +56,43 @@ def test_pet_topic_detects_uppercase_turkish():
     assert not bot.is_pet_topic("Çay ne kadar?")
 
 
+def test_about_bot_detects_questions_about_the_agent():
+    assert bot.is_about_bot("Sen robot musun?")
+    assert bot.is_about_bot("SEN KİMSİN")
+    assert bot.is_about_bot("Gerçekten insan mısın?")
+    assert bot.is_about_bot("nesin sen")
+    assert not bot.is_about_bot("Çay ne kadar?")
+    assert not bot.is_about_bot("Evcil hayvanımı getirebilir miyim?")
+    assert not bot.is_about_bot("Mars'a taşınmalı mıyım?")
+
+
+def test_sansur_masks_forbidden_words_across_chunks():
+    parcalar = ["Rakibimiz Ven", "üs Turizm değil. VENÜS", "'e git, ", "venüslü olma."]
+    cikti = list(bot.sansur(iter(parcalar), ["venüs"]))
+    metin = "".join(cikti)
+    assert metin == "Rakibimiz … Turizm değil. …'e git, … olma."
+    assert "ven" not in bot.tr_lower(metin)
+
+
+def test_sansur_without_list_passes_text_through():
+    parcalar = ["Çay ", "500 TL'dir."]
+    assert "".join(bot.sansur(iter(parcalar), [])) == "Çay 500 TL'dir."
+
+
+def test_persona_has_forbidden_word_list(persona):
+    assert isinstance(persona["yasak"], list) and persona["yasak"]
+
+
+def test_about_bot_question_skips_wound_and_refusal(persona):
+    motifs = (persona["matrix"][0], persona["ipucu"][0])
+    mesajlar = bot.build_messages(persona, [], "Sen hayvan mısın?", [], motifs,
+                                  pet=True, repeat=False)
+    kullanici = mesajlar[-1]["content"]
+    assert "Bu soru sana dair" in kullanici
+    assert persona["wound"] not in kullanici
+    assert f"ilk cümlen \"{persona['refusal']}\"" not in kullanici
+
+
 # --- girdi denetimi ---------------------------------------------------------
 
 def test_validate_question():
