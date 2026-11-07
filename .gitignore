@@ -18,3 +18,7 @@ docs/
 
 # Playwright tarayici test gunlukleri
 .playwright-mcp/
+
+# Environment files (keep only the example)
+.env.*
+!.env.example
