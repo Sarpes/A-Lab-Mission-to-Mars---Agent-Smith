@@ -9,6 +9,7 @@ Agent Smith: a Turkish customer chatbot for the fictional company "Mars Turizm" 
 
 ## Commands
 - Run: `python -m streamlit run app.py` (needs Ollama 0.40+ with `gemma4:latest` and `bge-m3` pulled).
+- Windows launchers: `baslat.bat` (stop old app.py, Funnel on 8501, start Streamlit), `durdur.bat` (stop Streamlit, Funnel 443 off, unload models, verify).
 - Tests: `python -m pytest -q` (66 unit tests, no Ollama needed).
 - Retrieval measurement: `python eval_rag.py` (needs Ollama + bge-m3).
 

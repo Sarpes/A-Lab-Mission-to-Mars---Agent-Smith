@@ -90,6 +90,8 @@ tailscale funnel --bg 8501          # aç
 tailscale funnel --https=443 off    # kapat
 ```
 
+**Windows'ta tek tıkla:** `baslat.bat` eski süreci durdurur, Funnel'i açar ve Streamlit'i başlatır (yeniden başlatma için de kullanılır). `durdur.bat` Streamlit'i ve Funnel'i kapatır, modelleri GPU belleğinden boşaltır ve ikisinin de kapandığını kontrol eder.
+
 ---
 
 ## Ayarlar
